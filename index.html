@@ -371,6 +371,31 @@
   .guide-steps li { counter-increment: guide; display: flex; gap: 12px; align-items: flex-start; margin: 0; padding: 12px; background: var(--bg-gray); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-main); line-height: 1.45; overflow-wrap: anywhere; }
   .guide-steps li::before { content: counter(guide); flex: 0 0 32px; width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--radius-md); background: var(--navy-primary); color: var(--primary-content); font-weight: 800; font-size: 0.82rem; }
   .guide-steps li b { color: var(--text-dark); }
+  .app-guide { width: min(1040px, 100%); max-height: min(86vh, 880px); overflow-y: auto; padding: 0; }
+  .guide-hero { padding: 2rem; color: var(--primary-content); background: linear-gradient(135deg, var(--navy-primary), color-mix(in srgb, var(--navy-primary) 74%, var(--gold))); border-radius: calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px) 0 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1.25rem; align-items: end; }
+  .guide-hero h2 { color: var(--primary-content); font-size: clamp(1.7rem, 3vw, 2.55rem); margin: 0 0 0.55rem; letter-spacing: 0; line-height: 1.05; }
+  .guide-hero p { margin: 0; color: color-mix(in srgb, var(--primary-content) 82%, transparent); max-width: 680px; font-weight: 600; }
+  .guide-badge { align-self: start; border: 1px solid rgba(255,255,255,0.28); background: rgba(255,255,255,0.12); color: var(--primary-content); border-radius: 999px; padding: 0.45rem 0.75rem; font-size: 0.78rem; font-weight: 800; white-space: nowrap; }
+  .guide-body { padding: 1.5rem; display: grid; gap: 1rem; }
+  .guide-feature-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+  .guide-feature { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--panel) 88%, var(--bg-gray)); padding: 1rem; min-height: 168px; box-shadow: var(--shadow-sm); }
+  .guide-feature::before { content: ""; position: absolute; inset: 0 0 auto; height: 4px; background: var(--guide-accent, var(--navy-primary)); }
+  .guide-feature h3 { margin: 0 0 0.45rem; color: var(--text-dark); font-size: 1rem; }
+  .guide-feature p { margin: 0; color: var(--text-main); font-size: 0.9rem; line-height: 1.48; }
+  .guide-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-md); background: color-mix(in srgb, var(--guide-accent, var(--navy-primary)) 14%, var(--panel)); color: var(--guide-accent, var(--navy-primary)); border: 1px solid color-mix(in srgb, var(--guide-accent, var(--navy-primary)) 24%, var(--border)); font-weight: 900; font-size: 0.78rem; margin-bottom: 0.75rem; }
+  .guide-section { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel); padding: 1rem; }
+  .guide-section h3 { margin: 0 0 0.85rem; color: var(--text-dark); font-size: 1rem; }
+  .guide-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; }
+  .guide-tip { display: grid; gap: 0.2rem; padding: 0.85rem; border-radius: var(--radius-md); background: var(--bg-gray); border: 1px solid var(--border); }
+  .guide-tip strong { color: var(--text-dark); font-size: 0.9rem; }
+  .guide-tip span { color: var(--text-main); font-size: 0.86rem; line-height: 1.42; }
+  .guide-flow { counter-reset: guideFlow; display: grid; gap: 0.65rem; }
+  .guide-flow-item { counter-increment: guideFlow; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0.75rem; align-items: start; padding: 0.85rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-gray); }
+  .guide-flow-item::before { content: counter(guideFlow); width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--radius-md); background: var(--navy-primary); color: var(--primary-content); font-weight: 900; font-size: 0.78rem; }
+  .guide-flow-item strong { color: var(--text-dark); display: block; margin-bottom: 0.15rem; }
+  .guide-flow-item span { color: var(--text-main); font-size: 0.88rem; line-height: 1.42; }
+  .guide-footer { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; justify-content: space-between; padding-top: 0.35rem; }
+  .guide-footer .helper-text { max-width: 680px; }
   
   .help-link-btn { width: 100%; margin-top: 8px; border-style: dashed; }
   .token-guide { max-height: min(78vh, 820px); overflow-y: auto; }
@@ -455,6 +480,9 @@
     .calendar-grid.week-view { grid-template-columns: 1fr; }
     .eps-day-section, .eps-schedule-grid { grid-template-columns: 1fr; }
     .eps-lunch-card { position: static; }
+    .guide-hero, .guide-feature-grid, .guide-columns { grid-template-columns: 1fr; }
+    .guide-hero { padding: 1.35rem; }
+    .guide-body { padding: 1rem; }
   }
 </style>
 </head>
@@ -1005,18 +1033,68 @@
 
 <!-- Modals -->
 <div id="tutorialModal" class="modal-backdrop" aria-hidden="true">
-  <div class="modal-card">
-    <h2>Welcome to EPStudy Pro</h2>
-    <ol class="guide-steps">
-      <li><b>Start with Tasks:</b> add manual work or sync Canvas so EPStudy can rank assignments by due date, type, and available time.</li>
-      <li><b>Use labels:</b> titles beginning with HW, CW/HW, CW, QA, or MA get priority context. Smart Suggestion only looks one week back and two weeks ahead.</li>
-      <li><b>Set availability:</b> use Settings -> Availability Schedule for after-school work windows. Weekends automatically disable the school-day schedule.</li>
-      <li><b>Sync sources:</b> Canvas adds assignments/courses, TeamSnap adds team events, and Membean tracks three 10-minute sessions due Saturday morning.</li>
-      <li><b>Focus Shield:</b> blocked sites are blocked by the extension while the timer is running and during non-lunch class periods.</li>
-      <li><b>Customize the dashboard:</b> Settings lets you hide panels you do not need, like quote, timer, calendar, or Membean.</li>
-    </ol>
-    <div class="row" style="margin-top:2rem;">
-      <button id="tutorialCloseBtn" class="button primary" type="button">Get Started</button>
+  <div class="modal-card app-guide">
+    <div class="guide-hero">
+      <div>
+        <p class="eyebrow" style="color: var(--gold); margin-bottom: 0.55rem;">EPStudy Guide</p>
+        <h2>Plan your day without hunting through five tabs.</h2>
+        <p>EPStudy brings tasks, schedule blocks, focus time, TeamSnap events, Membean progress, and reminders into one workspace that adapts to how you actually study.</p>
+      </div>
+      <span class="guide-badge">V2 Workspace</span>
+    </div>
+    <div class="guide-body">
+      <div class="guide-feature-grid">
+        <article class="guide-feature" style="--guide-accent: var(--navy-primary);">
+          <div class="guide-icon">SS</div>
+          <h3>Smart Suggestion</h3>
+          <p>EPStudy looks at real due dates, priority labels, overdue work, and nearby deadlines. It keeps suggestions focused by ignoring work too far in the future or too old to matter.</p>
+        </article>
+        <article class="guide-feature" style="--guide-accent: var(--gold);">
+          <div class="guide-icon">FT</div>
+          <h3>Focus Timer</h3>
+          <p>Load any task into the timer, pick a preset or custom length, and use Focus Shield to block distracting sites while you work. The timer resets back to no selected task when it ends.</p>
+        </article>
+        <article class="guide-feature" style="--guide-accent: #14b8a6;">
+          <div class="guide-icon">CA</div>
+          <h3>Calendar + Schedule</h3>
+          <p>The calendar shows Canvas work and TeamSnap events without duplicates. Week view stays on the current week, and the school schedule highlights the current period when school is in session.</p>
+        </article>
+      </div>
+
+      <section class="guide-section">
+        <h3>Recommended Setup</h3>
+        <div class="guide-flow">
+          <div class="guide-flow-item">
+            <div><strong>Open the Settings page first.</strong><span>Choose Middle Schooler or Upper Schooler, enable Membean if you use it, pick a skin, and decide which dashboard sections should start expanded.</span></div>
+          </div>
+          <div class="guide-flow-item">
+            <div><strong>Sync from the extension.</strong><span>Keep EPStudy open, then visit signed-in Canvas, Membean, and TeamSnap schedule pages. The extension sends updates back to the dashboard and calendar.</span></div>
+          </div>
+          <div class="guide-flow-item">
+            <div><strong>Start from Smart Suggestion.</strong><span>Use the suggestion as your first task, dismiss anything you do not want to see, or open More Info to jump back to Canvas when a link is available.</span></div>
+          </div>
+          <div class="guide-flow-item">
+            <div><strong>Use the timer when you are ready.</strong><span>Load a task into either focus timer, start a session, and let notifications keep TeamSnap events visible without putting them in your task list.</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="guide-section">
+        <h3>Features Worth Knowing</h3>
+        <div class="guide-columns">
+          <div class="guide-tip"><strong>Change course colors</strong><span>In Settings, each course has a color picker. Those colors carry into tasks and calendar cards so your classes are easier to scan.</span></div>
+          <div class="guide-tip"><strong>Dashboard expansion</strong><span>Settings lets you choose which dashboard sections start as compact buttons, so big panels stay out of the way until you need them.</span></div>
+          <div class="guide-tip"><strong>Skins can do more than colors</strong><span>Some skins change the whole mood of the page, including animated or visual backgrounds. Use Show Skins to turn those effects on or off.</span></div>
+          <div class="guide-tip"><strong>Music is optional</strong><span>Pick a chill, study, or lofi track in Settings, import your own audio, or choose None if you want EPStudy quiet.</span></div>
+          <div class="guide-tip"><strong>TeamSnap stays on the calendar</strong><span>TeamSnap items are treated as events, not homework. They appear on the calendar and notifications page when they are coming up soon.</span></div>
+          <div class="guide-tip"><strong>Reset is serious</strong><span>The Reset button clears tasks, calendar data, settings, notifications, and saved dashboard state. Use it only when you really want a fresh start.</span></div>
+        </div>
+      </section>
+
+      <div class="guide-footer">
+        <p class="helper-text">Best daily flow: check Smart Suggestion, glance at Schedule Awareness, load one task into the timer, then use the calendar when you need the bigger picture.</p>
+        <button id="tutorialCloseBtn" class="button primary" type="button">Get Started</button>
+      </div>
     </div>
   </div>
 </div>
