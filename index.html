@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>EPStudy Workspace</title>
+<title>EPStudy Workspace Pro</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -383,8 +383,12 @@
   .guide-feature h3 { margin: 0 0 0.45rem; color: var(--text-dark); font-size: 1rem; }
   .guide-feature p { margin: 0; color: var(--text-main); font-size: 0.9rem; line-height: 1.48; }
   .guide-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-md); background: color-mix(in srgb, var(--guide-accent, var(--navy-primary)) 14%, var(--panel)); color: var(--guide-accent, var(--navy-primary)); border: 1px solid color-mix(in srgb, var(--guide-accent, var(--navy-primary)) 24%, var(--border)); font-weight: 900; font-size: 0.78rem; margin-bottom: 0.75rem; }
-  .guide-section { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel); padding: 1rem; }
-  .guide-section h3 { margin: 0 0 0.85rem; color: var(--text-dark); font-size: 1rem; }
+  .guide-section { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel); padding: 0.85rem; }
+  .guide-section-header { display: flex; justify-content: space-between; align-items: center; gap: 0.85rem; flex-wrap: wrap; }
+  .guide-section h3 { margin: 0; color: var(--text-dark); font-size: 1rem; }
+  .guide-section-content { margin-top: 0.85rem; }
+  .guide-section-content[hidden] { display: none !important; }
+  .guide-toggle { min-width: 92px; padding: 0.45rem 0.85rem; }
   .guide-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; }
   .guide-tip { display: grid; gap: 0.2rem; padding: 0.85rem; border-radius: var(--radius-md); background: var(--bg-gray); border: 1px solid var(--border); }
   .guide-tip strong { color: var(--text-dark); font-size: 0.9rem; }
@@ -396,6 +400,17 @@
   .guide-flow-item span { color: var(--text-main); font-size: 0.88rem; line-height: 1.42; }
   .guide-footer { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; justify-content: space-between; padding-top: 0.35rem; }
   .guide-footer .helper-text { max-width: 680px; }
+  .welcome-card { width: min(760px, 100%); padding: 0; overflow: hidden; background: var(--panel); }
+  .welcome-hero { position: relative; padding: clamp(1.5rem, 4vw, 3rem); min-height: 430px; display: grid; place-items: center; text-align: center; color: var(--primary-content); background: radial-gradient(circle at 50% 12%, color-mix(in srgb, var(--gold) 34%, transparent), transparent 34%), linear-gradient(135deg, var(--navy-bg), var(--navy-primary)); isolation: isolate; }
+  .welcome-hero::before { content: ""; position: absolute; inset: 16px; border: 1px solid rgba(255,255,255,0.2); border-radius: var(--radius-lg); pointer-events: none; }
+  .welcome-hero::after { content: ""; position: absolute; inset: auto -12% -30% -12%; height: 48%; background: color-mix(in srgb, var(--gold) 32%, transparent); filter: blur(44px); opacity: 0.55; z-index: -1; }
+  .welcome-content { max-width: 620px; display: grid; justify-items: center; gap: 1rem; }
+  .welcome-school-logo { width: min(340px, 78vw); max-height: 150px; object-fit: contain; border-radius: var(--radius-lg); padding: 14px 18px; background: rgba(255,255,255,0.94); border: 1px solid rgba(255,255,255,0.32); box-shadow: 0 24px 58px -34px rgba(0,0,0,0.72); }
+  .welcome-title { margin: 0; color: #ffffff !important; font-size: clamp(2.15rem, 6vw, 4rem); line-height: 0.98; letter-spacing: 0; text-shadow: 0 3px 18px rgba(0,0,0,0.5); }
+  .welcome-motto { margin: 0; color: color-mix(in srgb, var(--primary-content) 88%, transparent); font-weight: 800; font-size: clamp(1rem, 2.4vw, 1.35rem); line-height: 1.7; }
+  .welcome-motto span { display: inline-block; white-space: nowrap; }
+  .welcome-copy { margin: 0; color: color-mix(in srgb, var(--primary-content) 74%, transparent); max-width: 520px; font-weight: 600; }
+  .welcome-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; justify-content: center; margin-top: 0.3rem; }
   
   .help-link-btn { width: 100%; margin-top: 8px; border-style: dashed; }
   .token-guide { max-height: min(78vh, 820px); overflow-y: auto; }
@@ -483,6 +498,8 @@
     .guide-hero, .guide-feature-grid, .guide-columns { grid-template-columns: 1fr; }
     .guide-hero { padding: 1.35rem; }
     .guide-body { padding: 1rem; }
+    .welcome-hero { min-height: 520px; }
+    .welcome-motto span { display: block; white-space: normal; }
   }
 </style>
 </head>
@@ -1032,6 +1049,30 @@
 </div>
 
 <!-- Modals -->
+<div id="welcomeModal" class="modal-backdrop" aria-hidden="true">
+  <div class="modal-card welcome-card">
+    <div class="welcome-hero">
+      <div class="welcome-content">
+        <img class="welcome-school-logo" src="EPS-logo.jpeg" alt="Eastside Preparatory School logo" />
+        <div>
+          <p class="eyebrow" style="color: var(--gold); margin-bottom: 0.65rem;">EPStudy Workspace</p>
+          <h2 class="welcome-title">Welcome EPS Eagles!</h2>
+        </div>
+        <p class="welcome-motto">
+          <span>Think Critically</span>...
+          <span>Act Responsibly</span>...
+          <span>Lead Compassionately</span>...
+          <span>Innovate Wisely</span>
+        </p>
+        <p class="welcome-copy">A calmer place to see what is due, what is happening today, and what deserves your focus first.</p>
+        <div class="welcome-actions">
+          <button id="welcomeContinueBtn" class="button success" type="button">Open Guide</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="tutorialModal" class="modal-backdrop" aria-hidden="true">
   <div class="modal-card app-guide">
     <div class="guide-hero">
@@ -1062,7 +1103,11 @@
       </div>
 
       <section class="guide-section">
-        <h3>Recommended Setup</h3>
+        <div class="guide-section-header">
+          <h3>Recommended Setup</h3>
+          <button class="button guide-toggle" type="button" data-guide-toggle="guideSetupContent" aria-expanded="false">Show</button>
+        </div>
+        <div id="guideSetupContent" class="guide-section-content" hidden>
         <div class="guide-flow">
           <div class="guide-flow-item">
             <div><strong>Open the Settings page first.</strong><span>Choose Middle Schooler or Upper Schooler, enable Membean if you use it, pick a skin, and decide which dashboard sections should start expanded.</span></div>
@@ -1077,10 +1122,15 @@
             <div><strong>Use the timer when you are ready.</strong><span>Load a task into either focus timer, start a session, and let notifications keep TeamSnap events visible without putting them in your task list.</span></div>
           </div>
         </div>
+        </div>
       </section>
 
       <section class="guide-section">
-        <h3>Features Worth Knowing</h3>
+        <div class="guide-section-header">
+          <h3>Features Worth Knowing</h3>
+          <button class="button guide-toggle" type="button" data-guide-toggle="guideFeaturesContent" aria-expanded="false">Show</button>
+        </div>
+        <div id="guideFeaturesContent" class="guide-section-content" hidden>
         <div class="guide-columns">
           <div class="guide-tip"><strong>Change course colors</strong><span>In Settings, each course has a color picker. Those colors carry into tasks and calendar cards so your classes are easier to scan.</span></div>
           <div class="guide-tip"><strong>Dashboard expansion</strong><span>Settings lets you choose which dashboard sections start as compact buttons, so big panels stay out of the way until you need them.</span></div>
@@ -1088,6 +1138,7 @@
           <div class="guide-tip"><strong>Music is optional</strong><span>Pick a chill, study, or lofi track in Settings, import your own audio, or choose None if you want EPStudy quiet.</span></div>
           <div class="guide-tip"><strong>TeamSnap stays on the calendar</strong><span>TeamSnap items are treated as events, not homework. They appear on the calendar and notifications page when they are coming up soon.</span></div>
           <div class="guide-tip"><strong>Reset is serious</strong><span>The Reset button clears tasks, calendar data, settings, notifications, and saved dashboard state. Use it only when you really want a fresh start.</span></div>
+        </div>
         </div>
       </section>
 
@@ -3971,7 +4022,21 @@
     });
 
     // Modals
-    document.getElementById("tutorialBtn")?.addEventListener("click", () => document.getElementById("tutorialModal")?.classList.add("open"));
+    document.getElementById("tutorialBtn")?.addEventListener("click", () => document.getElementById("welcomeModal")?.classList.add("open"));
+    document.getElementById("welcomeContinueBtn")?.addEventListener("click", () => {
+      document.getElementById("welcomeModal")?.classList.remove("open");
+      document.getElementById("tutorialModal")?.classList.add("open");
+    });
+    document.querySelectorAll("[data-guide-toggle]").forEach(button => {
+      button.addEventListener("click", () => {
+        const section = document.getElementById(button.dataset.guideToggle);
+        if (!section) return;
+        const isOpening = section.hidden;
+        section.hidden = !isOpening;
+        button.textContent = isOpening ? "Hide" : "Show";
+        button.setAttribute("aria-expanded", String(isOpening));
+      });
+    });
     document.getElementById("tutorialCloseBtn")?.addEventListener("click", () => { state.tutorialSeen=true; saveState(); document.getElementById("tutorialModal")?.classList.remove("open"); });
     document.getElementById("canvasTokenGuideBtn")?.addEventListener("click", () => document.getElementById("canvasTokenModal")?.classList.add("open"));
     document.getElementById("canvasTokenGuideBtnTasks")?.addEventListener("click", () => document.getElementById("canvasTokenModal")?.classList.add("open"));
@@ -4095,7 +4160,7 @@
   registerEvents();
   window.addEventListener("beforeunload", saveState);
   resizeFxCanvas();
-  if(!state.tutorialSeen) document.getElementById("tutorialModal")?.classList.add("open");
+  if(!state.tutorialSeen) document.getElementById("welcomeModal")?.classList.add("open");
   
   const tdd = document.getElementById("taskDueDate");
   if(tdd && !tdd.value) tdd.value = new Date().toISOString().slice(0, 10);
