@@ -104,7 +104,7 @@
   .settings-card p { margin: 0 0 12px; color: var(--muted); font-size: 0.9rem; }
 
   /* TIMER PAGE */
-  .timer-expanded { font-size: clamp(3rem, 7vw, 5.5rem); font-weight: 800; color: var(--navy-primary); text-align: center; margin: 0; font-family: 'Courier New', monospace; line-height: 1; }
+  .timer-expanded { font-size: clamp(3rem, 7vw, 5.5rem); font-weight: 800; color: var(--navy-primary); text-align: center; margin: 0; font-family: "Inter", sans-serif; font-variant-numeric: tabular-nums; line-height: 1; letter-spacing: 0; }
   .timer-controls-expanded { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 0; }
   #page-timer { overflow: hidden; }
   .timer-immersive-panel { width: 100%; height: calc(100% - 46px); min-height: 0; margin: 0 auto; text-align: left; overflow: hidden; position: relative; display: grid; grid-template-columns: minmax(260px, 0.9fr) minmax(520px, 1.1fr); gap: 1rem; align-items: stretch; background: color-mix(in srgb, var(--panel) 88%, var(--bg-gray)); }
@@ -156,7 +156,7 @@
   #page-dashboard .stat-chip strong { font-size: 1.25rem; }
   #page-dashboard .schedule-timeline { margin-top: 0.75rem; gap: 6px; }
   #page-dashboard .timer-container { padding: 0.6rem 0 0; }
-  #page-dashboard .timer { font-size: clamp(2.6rem, 4.6vw, 3.8rem); margin-bottom: 0.6rem; letter-spacing: -0.03em; }
+  #page-dashboard .timer { font-size: clamp(2.6rem, 4.6vw, 3.8rem); margin-bottom: 0.6rem; letter-spacing: 0; }
   #page-dashboard .timer-controls { margin-top: 1rem; }
   #page-dashboard .timer-presets, #page-dashboard .timer-context, #page-dashboard .timer-stats { margin-top: 0.65rem; }
   #page-dashboard .timer-stat { padding: 0.55rem; }
@@ -239,7 +239,7 @@
 
   /* Enhanced Timer */
   .timer-container { text-align: center; padding: 2rem 0; }
-  .timer { font-size: clamp(3.5rem, 6vw, 5rem); color: var(--text-dark); font-weight: 800; font-family: "Inter", monospace; line-height: 1; margin-bottom: 1rem; letter-spacing: -0.05em; }
+  .timer { font-size: clamp(3.5rem, 6vw, 5rem); color: var(--text-dark); font-weight: 800; font-family: "Inter", sans-serif; font-variant-numeric: tabular-nums; line-height: 1; margin-bottom: 1rem; letter-spacing: 0; }
   .timer-controls { display: flex; justify-content: center; gap: 10px; margin-top: 1.5rem; }
   .timer-presets { display: grid; grid-template-columns: repeat(4, minmax(72px, 1fr)); gap: 8px; margin-top: 14px; }
   .timer-preset { min-height: 42px; display: grid; place-items: center; padding: 8px 10px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--panel); color: var(--text-dark); font-size: 0.82rem; font-weight: 800; cursor: pointer; white-space: nowrap; box-shadow: var(--shadow-sm); }
@@ -389,6 +389,13 @@
   .guide-section-content { margin-top: 0.85rem; }
   .guide-section-content[hidden] { display: none !important; }
   .guide-toggle { min-width: 92px; padding: 0.45rem 0.85rem; }
+  .guide-setup-panel { border: 1px solid var(--border); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--panel) 90%, var(--bg-gray)); padding: 1rem; display: grid; gap: 0.9rem; }
+  .guide-setup-panel h3 { margin: 0; color: var(--text-dark); font-size: 1rem; }
+  .guide-setup-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; }
+  .guide-choice { display: flex; align-items: flex-start; gap: 0.65rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-gray); padding: 0.85rem; color: var(--text-dark); cursor: pointer; min-height: 86px; }
+  .guide-choice input { margin-top: 0.15rem; accent-color: var(--navy-primary); }
+  .guide-choice strong { display: block; color: var(--text-dark); font-size: 0.9rem; }
+  .guide-choice span { display: block; color: var(--muted); font-size: 0.78rem; line-height: 1.35; margin-top: 0.15rem; }
   .guide-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; }
   .guide-tip { display: grid; gap: 0.2rem; padding: 0.85rem; border-radius: var(--radius-md); background: var(--bg-gray); border: 1px solid var(--border); }
   .guide-tip strong { color: var(--text-dark); font-size: 0.9rem; }
@@ -495,7 +502,7 @@
     .calendar-grid.week-view { grid-template-columns: 1fr; }
     .eps-day-section, .eps-schedule-grid { grid-template-columns: 1fr; }
     .eps-lunch-card { position: static; }
-    .guide-hero, .guide-feature-grid, .guide-columns { grid-template-columns: 1fr; }
+    .guide-hero, .guide-feature-grid, .guide-columns, .guide-setup-grid { grid-template-columns: 1fr; }
     .guide-hero { padding: 1.35rem; }
     .guide-body { padding: 1rem; }
     .welcome-hero { min-height: 520px; }
@@ -705,6 +712,9 @@
         <article class="panel col-4">
           <h2>TeamSnap Sync</h2>
           <div class="canvas-form">
+            <label class="mini-text" style="display:flex; align-items:center; gap: 8px; color: var(--text-dark);">
+              <input id="teamSnapEnabled" type="checkbox" /> I use TeamSnap
+            </label>
             <textarea id="teamSnapTeamId" class="field" rows="3" placeholder="TeamSnap Team IDs, one per line or comma separated"></textarea>
             <input id="teamSnapToken" class="password-field" type="password" placeholder="TeamSnap API token" />
             <div class="row" style="align-items: center; margin-top: 4px;">
@@ -713,7 +723,7 @@
             </div>
             <button id="teamSnapSyncBtn" class="button primary" type="button" style="margin-top: 8px;">Sync TeamSnap</button>
           </div>
-          <p id="teamSnapMessage" class="alert">Imports practices/games as tasks. Multiple teams are supported.</p>
+          <p id="teamSnapMessage" class="alert">Imports TeamSnap events to the calendar and reminders. Multiple teams are supported.</p>
         </article>
 
         <article class="panel col-4">
@@ -1084,6 +1094,31 @@
       <span class="guide-badge">V2 Workspace</span>
     </div>
     <div class="guide-body">
+      <section class="guide-setup-panel" aria-label="Quick setup">
+        <div>
+          <h3>Quick Setup</h3>
+          <p class="mini-text">You can change these later in Settings.</p>
+        </div>
+        <div class="guide-setup-grid">
+          <label class="guide-choice">
+            <input type="radio" name="guideSchoolDivision" value="us" data-guide-division />
+            <span><strong>Upper Schooler</strong><span>Show upper school lunch, flex, clubs, and activity blocks.</span></span>
+          </label>
+          <label class="guide-choice">
+            <input type="radio" name="guideSchoolDivision" value="ms" data-guide-division />
+            <span><strong>Middle Schooler</strong><span>Show middle school lunch, advisory, and band blocks.</span></span>
+          </label>
+          <label class="guide-choice">
+            <input id="guideTeamSnapEnabled" type="checkbox" />
+            <span><strong>Use TeamSnap</strong><span>Sync team events to the calendar and reminders, not the task list.</span></span>
+          </label>
+          <label class="guide-choice">
+            <input id="guideMembeanEnabled" type="checkbox" />
+            <span><strong>Use Membean</strong><span>Track weekly Membean sessions when you use Membean.</span></span>
+          </label>
+        </div>
+      </section>
+
       <div class="guide-feature-grid">
         <article class="guide-feature" style="--guide-accent: var(--navy-primary);">
           <div class="guide-icon">SS</div>
@@ -1301,6 +1336,7 @@
       selectedSkin: "default", skinsVisible: true, confettiEnabled: true,
       musicMode: "none", musicVolume: 35, importedMusicName: "", importedMusicDataUrl: "",
       membeanEnabled: false,
+      teamSnapEnabled: false,
       calendarYear: now.getFullYear(), calendarMonth: now.getMonth(), calendarDay: now.getDate(), timerMinutes: 25,
 	      calendarView: "month",
 	      schoolDivision: "us",
@@ -1343,6 +1379,7 @@
       merged.availabilityByDay = typeof merged.availabilityByDay === "object" && merged.availabilityByDay ? merged.availabilityByDay : base.availabilityByDay;
       merged.notificationSettings = { ...base.notificationSettings, ...(merged.notificationSettings || {}) };
       merged.membeanEnabled = Boolean(merged.membeanEnabled);
+      merged.teamSnapEnabled = Boolean(merged.teamSnapEnabled);
       merged.calendarView = ["month", "week"].includes(merged.calendarView) ? merged.calendarView : "month";
       merged.selectedSkin = SKIN_IDS.includes(merged.selectedSkin) ? merged.selectedSkin : "default";
       merged.skinsVisible = typeof merged.skinsVisible === "boolean" ? merged.skinsVisible : true;
@@ -1372,6 +1409,10 @@
       if (!merged.membeanEnabled) {
         merged.dashboardSections.membean = false;
         merged.notificationSettings.membean = false;
+      }
+      if (!merged.teamSnapEnabled) {
+        merged.tasks = merged.tasks.filter(task => String(task?.source || "").toLowerCase() !== "teamsnap");
+        merged.teamSnap48NoticeKeys = [];
       }
       merged.membeanSessionsCompleted = Math.max(0, Math.min(3, Number(merged.membeanSessionsCompleted) || 0));
       merged.membeanSessionsLastUpdated = typeof merged.membeanSessionsLastUpdated === "string" ? merged.membeanSessionsLastUpdated : null;
@@ -3077,6 +3118,7 @@
   }
 
   function notifyUpcomingTeamSnapEvents() {
+    if (!state.teamSnapEnabled) return;
     const now = Date.now();
     const windowEnd = now + 48 * 60 * 60 * 1000;
     const seen = new Set(Array.isArray(state.teamSnap48NoticeKeys) ? state.teamSnap48NoticeKeys : []);
@@ -3096,6 +3138,7 @@
   }
 
   function upsertImportedTasks(incomingTasks, source) {
+    if (source === "teamsnap" && !state.teamSnapEnabled) return { added: 0, updated: 0, total: 0 };
     removeTasksWithoutRealCourse(false);
     const normalized = dedupeIncomingTasks((Array.isArray(incomingTasks) ? incomingTasks : [])
       .map(task => normalizeIncomingTask(task, source))
@@ -3137,9 +3180,10 @@
     const sourceCounts = {};
     const canvasStatus = payload.sourceStatus?.canvas || null;
     const teamSnapStatus = payload.sourceStatus?.teamsnap || null;
-    if (Array.isArray(payload.teamsnap) && payload.teamsnap.length) ensureSportsCourse();
+    if (state.teamSnapEnabled && Array.isArray(payload.teamsnap) && payload.teamsnap.length) ensureSportsCourse();
     for (const source of ["canvas", "teamsnap", "membean"]) {
       if (source === "membean" && !state.membeanEnabled) continue;
+      if (source === "teamsnap" && !state.teamSnapEnabled) continue;
       if (!Array.isArray(payload[source])) continue;
       const result = upsertImportedTasks(payload[source], source);
       sourceCounts[source] = result.total;
@@ -3399,6 +3443,7 @@
     const useProxy = document.getElementById("teamSnapUseProxy")?.checked;
     const msg = document.getElementById("teamSnapMessage");
 
+    if (!state.teamSnapEnabled) { if (msg) msg.textContent = "Turn on I use TeamSnap before syncing."; return; }
     if (!ids.length || !tkn) { if (msg) msg.textContent = "At least one Team ID and token required."; return; }
     if (msg) msg.textContent = `Syncing ${ids.length} TeamSnap team(s)...`;
 
@@ -3446,6 +3491,33 @@
     return avail.isFreeNow || !sched.inClass || sched.isStudyHall;
   }
 
+  function setMembeanEnabled(enabled) {
+    state.membeanEnabled = Boolean(enabled);
+    state.dashboardSections.membean = state.membeanEnabled;
+    state.notificationSettings.membean = state.membeanEnabled;
+    if (!state.membeanEnabled) state.tasks = state.tasks.filter(task => task.source !== "membean");
+    if (!state.membeanEnabled) delete state.dashboardExpandedSections.membean;
+    if (!state.membeanEnabled) state.dashboardExpansionSections.membean = false;
+  }
+
+  function setTeamSnapEnabled(enabled) {
+    state.teamSnapEnabled = Boolean(enabled);
+    if (!state.teamSnapEnabled) {
+      state.tasks = state.tasks.filter(task => !isTeamSnapEvent(task));
+      state.teamSnap48NoticeKeys = [];
+    }
+  }
+
+  function syncGuideSetupControls() {
+    document.querySelectorAll("[data-guide-division]").forEach(input => {
+      input.checked = input.value === state.schoolDivision;
+    });
+    const guideTeamSnap = document.getElementById("guideTeamSnapEnabled");
+    if (guideTeamSnap) guideTeamSnap.checked = Boolean(state.teamSnapEnabled);
+    const guideMembean = document.getElementById("guideMembeanEnabled");
+    if (guideMembean) guideMembean.checked = Boolean(state.membeanEnabled);
+  }
+
   function renderAll() {
     if (removeTasksWithoutRealCourse(false)) saveState();
     document.body.classList.remove(...SKIN_IDS.map(id => `skin-${id}`));
@@ -3460,7 +3532,9 @@
     const ce = document.getElementById("confettiEnabled"); if (ce) ce.checked = Boolean(state.confettiEnabled);
     const sv = document.getElementById("skinsVisible"); if (sv) sv.checked = Boolean(state.skinsVisible);
     const mbe = document.getElementById("membeanEnabled"); if (mbe) mbe.checked = Boolean(state.membeanEnabled);
+    const tse = document.getElementById("teamSnapEnabled"); if (tse) tse.checked = Boolean(state.teamSnapEnabled);
     const sds = document.getElementById("schoolDivisionSelect"); if (sds) sds.value = state.schoolDivision;
+    syncGuideSetupControls();
     syncMusicSettings();
 
     const coHtml = state.courses.map(c => `<option value="${c.id}">${escapeHtml(c.name)}${c.code?` (${escapeHtml(c.code)})`:""}</option>`).join("");
@@ -3571,7 +3645,8 @@
       skinsVisible: state.skinsVisible,
       skinLockCheckbox: state.skinChangeRestrictedToFreePeriods,
       confettiEnabled: state.confettiEnabled,
-      membeanEnabled: state.membeanEnabled
+      membeanEnabled: state.membeanEnabled,
+      teamSnapEnabled: state.teamSnapEnabled
     };
     for (const [id, val] of Object.entries(els)) {
       const el = document.getElementById(id);
@@ -3995,12 +4070,12 @@
     });
 
     document.getElementById("membeanEnabled")?.addEventListener("change", e => {
-      state.membeanEnabled = e.target.checked;
-      state.dashboardSections.membean = e.target.checked;
-      state.notificationSettings.membean = e.target.checked;
-      if (!e.target.checked) state.tasks = state.tasks.filter(task => task.source !== "membean");
-      if (!e.target.checked) delete state.dashboardExpandedSections.membean;
-      if (!e.target.checked) state.dashboardExpansionSections.membean = false;
+      setMembeanEnabled(e.target.checked);
+      saveState(); renderAll();
+    });
+
+    document.getElementById("teamSnapEnabled")?.addEventListener("change", e => {
+      setTeamSnapEnabled(e.target.checked);
       saveState(); renderAll();
     });
 
@@ -4036,6 +4111,21 @@
         button.textContent = isOpening ? "Hide" : "Show";
         button.setAttribute("aria-expanded", String(isOpening));
       });
+    });
+    document.querySelectorAll("[data-guide-division]").forEach(input => {
+      input.addEventListener("change", e => {
+        if (!e.target.checked) return;
+        state.schoolDivision = e.target.value === "ms" ? "ms" : "us";
+        saveState(); renderAll();
+      });
+    });
+    document.getElementById("guideTeamSnapEnabled")?.addEventListener("change", e => {
+      setTeamSnapEnabled(e.target.checked);
+      saveState(); renderAll();
+    });
+    document.getElementById("guideMembeanEnabled")?.addEventListener("change", e => {
+      setMembeanEnabled(e.target.checked);
+      saveState(); renderAll();
     });
     document.getElementById("tutorialCloseBtn")?.addEventListener("click", () => { state.tutorialSeen=true; saveState(); document.getElementById("tutorialModal")?.classList.remove("open"); });
     document.getElementById("canvasTokenGuideBtn")?.addEventListener("click", () => document.getElementById("canvasTokenModal")?.classList.add("open"));
