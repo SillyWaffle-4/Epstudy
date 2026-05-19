@@ -1505,7 +1505,9 @@
   }
 
   function publishEpstudyVersionSelection(source = "app") {
-    try { localStorage.setItem(VERSION_STORAGE_KEY, EPSTUDY_APP_VERSION); } catch {}
+    if (source !== "init") {
+      try { localStorage.setItem(VERSION_STORAGE_KEY, EPSTUDY_APP_VERSION); } catch {}
+    }
     window.postMessage({ type: "EPSTUDY_VERSION_SELECTED", version: EPSTUDY_APP_VERSION, source }, bridgeTargetOrigin());
   }
 

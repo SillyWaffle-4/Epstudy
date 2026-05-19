@@ -553,16 +553,34 @@ function scrapeVisibleCanvasTasks() {
   const selectors = [
     ".planner-item",
     "[class*='PlannerItem']",
+    "[class*='Planner__item']",
+    "[class*='PlannerItem-styles']",
     ".todo-list li",
     "[data-testid*='todo']",
+    "[data-testid*='planner']",
+    "[data-testid*='assignment']",
     ".ig-row",
     ".assignment",
     "[class*='assignment']",
+    "li",
     "tr"
   ];
   const nodes = Array.from(document.querySelectorAll(selectors.join(",")));
   for (const node of nodes) {
     const row = canvasTaskFromNode(node);
+    if (row) rows.push(row);
+  }
+  return rows;
+}
+
+function scrapeCanvasAssignmentLinkTasks() {
+  const rows = [];
+  const links = Array.from(document.querySelectorAll([
+    "a[href*='/courses/'][href*='/assignments/']",
+    "a[href*='/assignments/']"
+  ].join(",")));
+  for (const link of links) {
+    const row = canvasTaskFromNode(taskContainerForAssignmentLink(link));
     if (row) rows.push(row);
   }
   return rows;
@@ -653,11 +671,10 @@ function scrapeCanvasDashboardCardTasks() {
 
 async function scrapeCanvasTasks(canvasDashboardView = detectCanvasDashboardView()) {
   const apiRows = await scrapeCanvasApiTasks();
-  if (apiRows.length) return dedupe(apiRows);
   const visibleRows = canvasDashboardView === "card"
-    ? [...scrapeCanvasDashboardCardTasks(), ...scrapeVisibleCanvasTasks()]
-    : [...scrapeVisibleCanvasTasks(), ...scrapeCanvasDashboardCardTasks()];
-  return dedupe(visibleRows);
+    ? [...scrapeCanvasDashboardCardTasks(), ...scrapeCanvasAssignmentLinkTasks(), ...scrapeVisibleCanvasTasks()]
+    : [...scrapeCanvasAssignmentLinkTasks(), ...scrapeVisibleCanvasTasks(), ...scrapeCanvasDashboardCardTasks()];
+  return dedupe([...apiRows, ...visibleRows]);
 }
 
 function getTeamSnapPageMeta() {

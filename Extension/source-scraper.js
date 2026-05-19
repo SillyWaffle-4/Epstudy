@@ -311,43 +311,79 @@ function scrapeVisibleCanvasTasks() {
   const rows = [];
   const selectors = [
     ".planner-item",
+    "[class*='PlannerItem']",
+    "[class*='Planner__item']",
+    "[class*='PlannerItem-styles']",
     ".todo-list li",
     "[data-testid*='todo']",
+    "[data-testid*='planner']",
+    "[data-testid*='assignment']",
     ".ig-row",
     ".assignment",
+    "[class*='assignment']",
+    "li",
     "tr"
   ];
   const nodes = Array.from(document.querySelectorAll(selectors.join(",")));
   for (const node of nodes) {
-    const titleNode = node.querySelector("a[href*='/assignments/'], a, .title, .ig-title, [data-testid*='title'], h2, h3") || node;
-    const title = normalizeAssignmentTitle(text(titleNode));
-    if (!title || title.length < 3 || /dashboard|calendar|inbox|account/i.test(title)) continue;
-    const timeNode = node.querySelector("time, [datetime], .due, .date, .todo-date");
-    const date = parseDate(timeNode?.getAttribute?.("datetime")) || parseDateFromText(text(timeNode) || text(node));
-    if (!date) continue;
-    const href = titleNode.getAttribute?.("href") || node.querySelector("a[href*='/assignments/']")?.getAttribute?.("href") || "";
-    const courseMatch = href.match(/\/courses\/(\d+)/);
-    const assignmentMatch = href.match(/\/assignments\/(\d+)/);
-    const courseIdRaw = courseMatch?.[1] || "";
-    if (!courseIdRaw) continue;
-    const assignmentId = assignmentMatch?.[1] || stableId("canvas", title, date);
-    rows.push({
-      id: courseIdRaw ? `canvas-${courseIdRaw}-${assignmentId}` : stableId("canvas", title, date),
-      title,
-      dueDate: date.toISOString(),
-      estimatedMinutes: 30,
-      source: "canvas",
-      courseId: courseIdRaw ? `canvas-course-${courseIdRaw}` : undefined,
-      externalKey: courseIdRaw && assignmentMatch ? `canvas:${courseIdRaw}:${assignmentId}` : stableId("canvas", title, date)
-    });
+    const row = canvasTaskFromNode(node);
+    if (row) rows.push(row);
   }
   return rows;
 }
 
+function scrapeCanvasAssignmentLinkTasks() {
+  const rows = [];
+  const links = Array.from(document.querySelectorAll([
+    "a[href*='/courses/'][href*='/assignments/']",
+    "a[href*='/assignments/']"
+  ].join(",")));
+  for (const link of links) {
+    const row = canvasTaskFromNode(taskContainerForAssignmentLink(link));
+    if (row) rows.push(row);
+  }
+  return rows;
+}
+
+function canvasTaskFromNode(node) {
+  if (!node) return null;
+  const titleNode = node.querySelector?.("a[href*='/assignments/'], a, .title, .ig-title, [data-testid*='title'], h2, h3") || node;
+  const title = normalizeAssignmentTitle(text(titleNode));
+  if (!title || title.length < 3 || /dashboard|calendar|inbox|account/i.test(title)) return null;
+  const timeNode = node.querySelector?.("time, [datetime], .due, .date, .todo-date, [class*='Due'], [class*='due'], [class*='date']");
+  const date = parseDate(timeNode?.getAttribute?.("datetime")) || parseDateFromText(text(timeNode) || text(node));
+  if (!date) return null;
+  const href = titleNode.getAttribute?.("href") || node.querySelector?.("a[href*='/assignments/']")?.getAttribute?.("href") || "";
+  const courseMatch = href.match(/\/courses\/(\d+)/);
+  const assignmentMatch = href.match(/\/assignments\/(\d+)/);
+  const courseIdRaw = courseMatch?.[1] || "";
+  if (!courseIdRaw) return null;
+  const assignmentId = assignmentMatch?.[1] || stableId("canvas", title, date);
+  return {
+    id: courseIdRaw ? `canvas-${courseIdRaw}-${assignmentId}` : stableId("canvas", title, date),
+    title,
+    dueDate: date.toISOString(),
+    estimatedMinutes: 30,
+    source: "canvas",
+    courseId: courseIdRaw ? `canvas-course-${courseIdRaw}` : undefined,
+    externalKey: courseIdRaw && assignmentMatch ? `canvas:${courseIdRaw}:${assignmentId}` : stableId("canvas", title, date),
+    canvasUrl: href || ""
+  };
+}
+
+function taskContainerForAssignmentLink(link) {
+  let current = link;
+  for (let depth = 0; current && depth < 8; depth++) {
+    const label = text(current);
+    if (label.length > 8 && label.length < 900 && parseDateFromText(label)) return current;
+    current = current.parentElement;
+  }
+  return link.closest("li, tr, [class*='ToDo'], [class*='todo'], [class*='PlannerItem'], [class*='assignment']") || link.parentElement;
+}
+
 async function scrapeCanvasTasks() {
   const apiRows = await scrapeCanvasApiTasks();
-  if (apiRows.length) return dedupe(apiRows);
-  return dedupe(scrapeVisibleCanvasTasks());
+  return dedupe([...apiRows, ...scrapeCanvasAssignmentLinkTasks(), ...scrapeVisibleCanvasTasks()]);
 }
 
 function getTeamSnapPageMeta() {
