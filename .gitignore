@@ -1,0 +1,10 @@
+.DS_Store
+
+# Local/archive builds that should not be published from this repo root.
+/V1/
+/V2/
+/V3/
+/V4/
+
+# Keep generated extension packages out of normal commits.
+*.zip
