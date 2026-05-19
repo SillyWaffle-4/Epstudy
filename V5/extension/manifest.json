@@ -13,7 +13,7 @@
     "https://*.membean.com/*",
     "https://membean.com/*",
     "https://www.eastsideprep.org/*",
-    "https://sillywaffle-4.github.io/epstudy/*"
+    "https://sillywaffle-4.github.io/Epstudy/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -21,7 +21,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://sillywaffle-4.github.io/epstudy/*"
+        "https://sillywaffle-4.github.io/Epstudy/*"
       ],
       "js": ["website-bridge.js"],
       "run_at": "document_idle"
