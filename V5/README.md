@@ -3,6 +3,7 @@
 V5 is a static GitHub Pages bundle.
 
 - `index.html` is the launcher.
+- `shared/` contains assets and data used by multiple workspaces.
 - `versions/v2/` contains the V2 workspace.
 - `versions/v3/` contains the V3 workspace.
 - `extension/` contains the Chrome/Edge extension source.

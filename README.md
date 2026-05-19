@@ -6,6 +6,7 @@ This repository publishes the V5 EPStudy launcher and workspaces with GitHub Pag
 
 - `index.html` redirects GitHub Pages visitors into `V5/`.
 - `V5/index.html` is the V5 launcher.
+- `V5/shared/` contains images and shared app data used by the bundled workspaces.
 - `V5/versions/v2/` and `V5/versions/v3/` are the two bundled workspaces.
 - `V5/extension/` contains the Chrome/Edge extension source.
 
