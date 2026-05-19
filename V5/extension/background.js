@@ -795,7 +795,7 @@ function isEpstudyUrl(url) {
     const parsed = new URL(url);
     return parsed.protocol === "https:"
       && parsed.hostname === "sillywaffle-4.github.io"
-      && parsed.pathname.startsWith("/Epstudy/");
+      && parsed.pathname.startsWith("/epstudy/");
   } catch {
     return false;
   }
