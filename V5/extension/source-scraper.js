@@ -161,13 +161,13 @@ async function scrapeCanvasCourses() {
     const rows = await fetchCanvasApiPages(`${window.location.origin}/api/v1/courses?enrollment_state=active&per_page=500`);
     for (const row of rows) {
       if (!row?.id || row.access_restricted_by_date) continue;
-      const name = String(row.name || row.course_code || `Canvas ${row.id}`).toLowerCase();
-      const code = String(row.course_code || "").toLowerCase();
-      if (name.includes("assignment") || code.includes("assignment")) continue;
+      const name = String(row.name || row.course_code || `Canvas ${row.id}`);
+      const code = String(row.course_code || "");
+      if (hasBlockedCanvasCourseKeyword(`${name} ${code}`)) continue;
       courses.push({
         id: String(row.id),
-        name: String(row.name || row.course_code || `Canvas ${row.id}`),
-        course_code: String(row.course_code || ""),
+        name,
+        course_code: code,
         source: "canvas"
       });
     }
@@ -181,7 +181,9 @@ async function scrapeCanvasCourses() {
     ...scrapeCanvasDashboardCardCourses(),
     ...Array.from(document.querySelectorAll("a[href*='/courses/']"))
     .map(node => {
-      const label = cleanCanvasCourseName(text(node));
+      const rawLabel = text(node);
+      if (hasBlockedCanvasCourseKeyword(rawLabel)) return null;
+      const label = cleanCanvasCourseName(rawLabel);
       const courseId = canvasCourseIdFromCourseHomeHref(node.getAttribute?.("href") || "");
       if (!courseId || !isLikelyCanvasCourseName(label)) return null;
       return { id: courseId, name: label, course_code: "", source: "canvas" };
@@ -196,12 +198,15 @@ function dashboardCoursesFromApiCards(cards) {
   return (Array.isArray(cards) ? cards : [])
     .map(card => {
       const id = String(card?.id || card?.course_id || "").trim();
-      const name = cleanCanvasCourseName(card?.shortName || card?.originalName || card?.name || card?.courseCode || "");
+      const rawName = card?.shortName || card?.originalName || card?.name || card?.courseCode || "";
+      const rawCode = card?.courseCode || card?.assetString || "";
+      if (hasBlockedCanvasCourseKeyword(`${rawName} ${rawCode}`)) return null;
+      const name = cleanCanvasCourseName(rawName);
       if (!id || !isLikelyCanvasCourseName(name)) return null;
       return {
         id,
         name,
-        course_code: String(card?.courseCode || card?.assetString || ""),
+        course_code: String(rawCode),
         source: "canvas"
       };
     })
@@ -219,6 +224,7 @@ function cleanCanvasCourseName(value) {
 function isLikelyCanvasCourseName(label) {
   const clean = String(label || "").trim();
   if (!clean || clean.length < 2 || clean.length > 120) return false;
+  if (hasBlockedCanvasCourseKeyword(clean)) return false;
   if (isCanvasNavigationLabel(clean)) return false;
   if (clean.includes(":")) return false;
   if (/^(hw|cw|qa|ma)\b\s*[-:]/i.test(clean)) return false;
@@ -226,6 +232,10 @@ function isLikelyCanvasCourseName(label) {
   if (/\b(chapter\s*\d+|quiz|project|poem|worksheet|homework|classwork)\b/i.test(clean)) return false;
   if (/\bassignment\b/i.test(clean) && !/\bthinking|algebra|spanish|music|class\b/i.test(clean)) return false;
   return true;
+}
+
+function hasBlockedCanvasCourseKeyword(value) {
+  return /\b(assignments?|files?)\b/i.test(String(value || ""));
 }
 
 function isCanvasNavigationLabel(label) {
@@ -276,7 +286,9 @@ function scrapeCanvasDashboardCardCourses() {
     const subtitleNode = card.querySelector?.(".ic-DashboardCard__header-subtitle, [class*='DashboardCard__header-subtitle']");
     const fallbackLine = text(card).split(/\s{2,}|(?=Announcements|Assignments|Discussions|Files)/i)[0];
     const ariaLabel = card.getAttribute?.("aria-label") || courseLink?.getAttribute?.("aria-label") || courseLink?.getAttribute?.("title") || "";
-    const name = cleanCanvasCourseName(text(titleNode) || ariaLabel.replace(/^course:?\s*/i, "") || fallbackLine);
+    const rawName = text(titleNode) || ariaLabel.replace(/^course:?\s*/i, "") || fallbackLine;
+    if (hasBlockedCanvasCourseKeyword(rawName)) return null;
+    const name = cleanCanvasCourseName(rawName);
     if (!id || !isLikelyCanvasCourseName(name)) return null;
     return {
       id,

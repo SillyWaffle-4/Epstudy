@@ -440,6 +440,7 @@ function normalizeCanvasCourses(courses) {
 function isLikelyCanvasCourseName(name, code = "") {
   const label = `${name} ${code}`.trim();
   if (!name || name.length > 120) return false;
+  if (hasBlockedCanvasCourseKeyword(label)) return false;
   if (isCanvasNavigationLabel(name)) return false;
   if (name.includes(":")) return false;
   if (/^(hw|cw|qa|ma)\b\s*[-:]/i.test(name)) return false;
@@ -448,6 +449,10 @@ function isLikelyCanvasCourseName(name, code = "") {
   if (/\b(chapter\s*\d+|quiz|project|poem|worksheet|homework|classwork)\b/i.test(name)) return false;
   if (/\bassignment\b/i.test(name) && !/\bthinking|algebra|spanish|music|class\b/i.test(name)) return false;
   return true;
+}
+
+function hasBlockedCanvasCourseKeyword(value) {
+  return /\b(assignments?|files?)\b/i.test(String(value || ""));
 }
 
 function isCanvasNavigationLabel(label) {

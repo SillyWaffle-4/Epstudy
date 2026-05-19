@@ -1384,10 +1384,10 @@
   };
 
   const DASHBOARD_WIDGETS = [
-    { id: "today", label: "Today Plan", defaultSize: "full" },
-    { id: "timer", label: "Focus Timer", defaultSize: "full" },
+    { id: "today", label: "Today Plan", defaultSize: "wide" },
+    { id: "timer", label: "Focus Timer", defaultSize: "small" },
     { id: "schedule", label: "Schedule", defaultSize: "small" },
-    { id: "quote", label: "Quote (Weekend)", defaultSize: "small" },
+    { id: "quote", label: "Quote (Weekend)", defaultSize: "small", hidden: true },
     { id: "membean", label: "Membean", defaultSize: "small" },
     { id: "notifications", label: "Notifications", defaultSize: "small" },
     { id: "calendar", label: "Weekly Calendar", defaultSize: "full" },
@@ -1414,7 +1414,7 @@
     const incomingVisible = incoming.visible && typeof incoming.visible === "object" ? incoming.visible : {};
     const incomingSizes = incoming.sizes && typeof incoming.sizes === "object" ? incoming.sizes : {};
     DASHBOARD_WIDGET_IDS.forEach(id => {
-      base.visible[id] = typeof incomingVisible[id] === "boolean" ? incomingVisible[id] : true;
+      base.visible[id] = typeof incomingVisible[id] === "boolean" ? incomingVisible[id] : base.visible[id] !== false;
       base.sizes[id] = Object.prototype.hasOwnProperty.call(DASHBOARD_SIZE_CLASSES, incomingSizes[id]) ? incomingSizes[id] : base.sizes[id];
     });
     return base;
@@ -1544,12 +1544,17 @@
   function isBadCanvasCourseRecord(course) {
     const id = String(course?.id || "");
     const name = String(course?.name || "");
+    const code = String(course?.code || course?.course_code || "");
     if (!id.startsWith("canvas-course-")) return false;
-    return isCanvasNavigationCourseName(name) || name.includes(":") || /^(hw|cw|qa|ma)\b\s*[-:]/i.test(name) || /\b\d+\s*pts?\b|\bdue\b/i.test(name) || /\/(assignments?|files|modules|pages|discussion_topics|quizzes)\//i.test(name) || /\b(chapter\s*\d+|quiz|project|poem|worksheet|homework|classwork)\b/i.test(name);
+    return hasBlockedCanvasCourseKeyword(`${name} ${code}`) || isCanvasNavigationCourseName(name) || name.includes(":") || /^(hw|cw|qa|ma)\b\s*[-:]/i.test(name) || /\b\d+\s*pts?\b|\bdue\b/i.test(name) || /\/(assignments?|files|modules|pages|discussion_topics|quizzes)\//i.test(name) || /\b(chapter\s*\d+|quiz|project|poem|worksheet|homework|classwork)\b/i.test(name);
   }
 
   function isCanvasNavigationCourseName(name) {
     return /^(announcements?|assignments?|assignment groups?|calendar|chat|collaborations?|conferences?|course details?|dashboard|discussions?|files?|grades?|help|history|home|inbox|modules?|outcomes?|pages?|people|quizzes?|rubrics?|settings|syllabus|to do|recent feedback|show all|courses?|all courses?)$/i.test(String(name || "").trim());
+  }
+
+  function hasBlockedCanvasCourseKeyword(value) {
+    return /\b(assignments?|files?)\b/i.test(String(value || ""));
   }
 
   function loadState() {
@@ -3737,6 +3742,7 @@
     const cid = String(courseIdRaw || canvasCourse?.id || "unknown");
     const canvasName = String(canvasCourse?.name || canvasCourse?.course_code || `Canvas ${cid}`).trim();
     const canvasCode = String(canvasCourse?.course_code || "").trim();
+    if (hasBlockedCanvasCourseKeyword(`${canvasName} ${canvasCode}`) || isCanvasNavigationCourseName(canvasName)) return "";
 
     const existing = state.courses.find((c) => c.id === `canvas-course-${cid}` || (canvasCode && String(c.code||"").toLowerCase() === canvasCode.toLowerCase()) || String(c.name||"").toLowerCase() === canvasName.toLowerCase());
     if (existing) return existing.id;
@@ -3754,6 +3760,7 @@
       const name = String(course.name || course.course_code || "").trim();
       if (!cid && !name) continue;
       const code = String(course.course_code || course.code || "").trim();
+      if (hasBlockedCanvasCourseKeyword(`${name} ${code}`) || isCanvasNavigationCourseName(name)) continue;
       const id = cid ? `canvas-course-${cid}` : `canvas-course-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
       const existing = state.courses.find(c => c.id === id || (code && String(c.code || "").toLowerCase() === code.toLowerCase()) || String(c.name || "").toLowerCase() === name.toLowerCase());
       if (existing) {
@@ -4147,9 +4154,11 @@
       
       state.tasks = state.tasks.filter(t => !String(t.title || "").includes("MOCK:"));
       
-      const validCourses = courses.filter(c => 
-        c && c.id && !c.access_restricted_by_date && !String(c.name || "").toLowerCase().includes("assignment") && !String(c.course_code || "").toLowerCase().includes("assignment")
-      );
+      const validCourses = courses.filter(c => {
+        const name = String(c?.name || "");
+        const code = String(c?.course_code || c?.code || "");
+        return c && c.id && !c.access_restricted_by_date && !hasBlockedCanvasCourseKeyword(`${name} ${code}`) && !isCanvasNavigationCourseName(name);
+      });
       upsertCanvasCourses(validCourses);
       const canvasCoursesById = new Map(validCourses.map(c => [String(c.id), c]));
 
