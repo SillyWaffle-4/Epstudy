@@ -368,19 +368,56 @@ async function fetchCanvasCourseFromAssignmentPage(courseIdRaw, task) {
     if (!response.ok) return null;
     const html = await response.text();
     const doc = new DOMParser().parseFromString(html, "text/html");
-    const courseLink = Array.from(doc.querySelectorAll(`a[href*="/courses/${courseIdRaw}"]`))
-      .find(link => {
-        try {
-          return new URL(link.getAttribute("href") || "", window.location.origin).pathname.replace(/\/$/, "") === `/courses/${courseIdRaw}`;
-        } catch {
-          return false;
-        }
-      });
-    const name = cleanCanvasCourseName(text(courseLink));
-    return normalizeCanvasCourseRecord({ id: courseIdRaw, name }, courseIdRaw);
+    return extractCanvasCourseFromAssignmentPage(courseIdRaw, html, doc);
   } catch {
     return null;
   }
+}
+
+function extractCanvasCourseFromAssignmentPage(courseIdRaw, html, doc) {
+  const courseId = String(courseIdRaw || "").trim();
+  const envCourse = canvasCurrentContextCourseFromHtml(courseId, html);
+  if (envCourse) return envCourse;
+
+  const breadcrumbLink = exactCanvasCourseLinks(doc, courseId)
+    .find(link => link.closest?.("#breadcrumbs, nav[aria-label='breadcrumbs']"));
+  const breadcrumbName = text(breadcrumbLink?.querySelector?.(".ellipsible")) || text(breadcrumbLink);
+  const breadcrumbCourse = normalizeCanvasCourseRecord({ id: courseId, name: breadcrumbName }, courseId);
+  if (breadcrumbCourse) return breadcrumbCourse;
+
+  for (const link of exactCanvasCourseLinks(doc, courseId)) {
+    const firstLine = text(link.querySelector?.(".ellipsible, div, span")) || text(link);
+    const course = normalizeCanvasCourseRecord({ id: courseId, name: firstLine }, courseId);
+    if (course) return course;
+  }
+
+  return null;
+}
+
+function canvasCurrentContextCourseFromHtml(courseIdRaw, html) {
+  const courseId = String(courseIdRaw || "").trim();
+  const raw = String(html || "");
+  const contextMatch = raw.match(/"current_context"\s*:\s*\{[^}]*"id"\s*:\s*"([^"]+)"[^}]*"name"\s*:\s*"((?:\\.|[^"\\])*)"[^}]*"type"\s*:\s*"Course"/);
+  if (!contextMatch || contextMatch[1] !== courseId) return null;
+  try {
+    const name = JSON.parse(`"${contextMatch[2]}"`);
+    return normalizeCanvasCourseRecord({ id: courseId, name }, courseId);
+  } catch {
+    return null;
+  }
+}
+
+function exactCanvasCourseLinks(doc, courseIdRaw) {
+  const courseId = String(courseIdRaw || "").trim();
+  if (!doc || !/^\d+$/.test(courseId)) return [];
+  return Array.from(doc.querySelectorAll(`a[href*="/courses/${courseId}"]`))
+    .filter(link => {
+      try {
+        return new URL(link.getAttribute("href") || "", window.location.origin).pathname.replace(/\/$/, "") === `/courses/${courseId}`;
+      } catch {
+        return false;
+      }
+    });
 }
 
 function text(node) {
