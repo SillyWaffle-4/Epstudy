@@ -274,7 +274,8 @@
   function isBadCanvasCourse(id, name, code) {
     if (!String(id).startsWith("canvas-course-")) return false;
     if (/^Canvas\s+\d+$/i.test(name) && (!code || /^C\d+$/i.test(code))) return true;
-    return /\b(assignments?|files?|course analytics|view course stream)\b/i.test(`${name} ${code}`)
+    const label = `${name} ${code}`.replace(/\s+/g, " ").trim();
+    return /\b(course analytics|view course stream)\b/i.test(label) || /^(assignments?|files?)$/i.test(label)
       || /^(announcements?|assignments?|files?|course analytics|dashboard|courses?|recent feedback|show all|view course stream)$/i.test(name);
   }
 
@@ -542,6 +543,14 @@
     const rawCourse = String(raw?.courseId || raw?.course_id || raw?.context_code?.replace?.(/^course_/, "") || "").trim();
     let courseId = rawCourse;
     if (taskSource === "canvas" && /^\d+$/.test(rawCourse)) courseId = `canvas-course-${rawCourse}`;
+    if (taskSource === "canvas" && !state.courses.some(course => course.id === courseId)) {
+      const rawId = rawCourse.replace(/^canvas-course-/, "");
+      const courseName = String(raw?.courseName || raw?.context_name || raw?.course_name || "").trim();
+      if (/^\d+$/.test(rawId) && courseName && !isBadCanvasCourse(`canvas-course-${rawId}`, courseName, raw?.courseCode || raw?.course_code || "")) {
+        courseId = `canvas-course-${rawId}`;
+        state.courses.push({ id: courseId, name: courseName, code: raw?.courseCode || raw?.course_code || "", color: colorFromString(`${courseName}-${rawId}`), source: "canvas" });
+      }
+    }
     if (!state.courses.some(course => course.id === courseId)) return null;
     const dueDate = parseDate(raw?.dueDate || raw?.due_at || raw?.start_at || raw?.startDate || raw?.date);
     if (!dueDate) return null;

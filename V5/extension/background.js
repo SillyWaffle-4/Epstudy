@@ -258,7 +258,10 @@ async function mergeSourcePayload(source, payload, sender = null) {
     }
   }
   const rows = normalizeRows(Array.isArray(payload?.tasks) ? payload.tasks : [], safeSource);
-  const incomingCourses = normalizeCanvasCourses(payload?.courses || []);
+  const incomingCourses = normalizeCanvasCourses([
+    ...(Array.isArray(payload?.courses) ? payload.courses : []),
+    ...(safeSource === "canvas" ? canvasCoursesFromTaskRows(rows) : [])
+  ]);
   const data = await chrome.storage.local.get(["canvas", "teamsnap", "courses", "sourceStatus"]);
   const sourceStatus = data.sourceStatus || {};
   const syncedAt = new Date().toISOString();
@@ -419,6 +422,15 @@ function normalizeRows(rows, source) {
   return Array.from(byIdentity.values());
 }
 
+function canvasCoursesFromTaskRows(rows) {
+  return (Array.isArray(rows) ? rows : []).map(row => {
+    const id = String(row?.courseId || "").replace(/^canvas-course-/, "").trim();
+    const name = String(row?.courseName || row?.context_name || row?.course_name || "").replace(/\s+/g, " ").trim();
+    if (!/^\d+$/.test(id) || !name) return null;
+    return { id, name, course_code: String(row?.courseCode || row?.course_code || "").trim(), source: "canvas" };
+  }).filter(Boolean);
+}
+
 function normalizeCanvasCourses(courses) {
   const seen = new Set();
   return (Array.isArray(courses) ? courses : [])
@@ -453,7 +465,8 @@ function isLikelyCanvasCourseName(name, code = "") {
 }
 
 function hasBlockedCanvasCourseKeyword(value) {
-  return /\b(assignments?|files?|course analytics|view course stream)\b/i.test(String(value || ""));
+  const label = String(value || "").replace(/\s+/g, " ").trim();
+  return /\b(course analytics|view course stream)\b/i.test(label) || /^(assignments?|files?)$/i.test(label);
 }
 
 function isCanvasNavigationLabel(label) {

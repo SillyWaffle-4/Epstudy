@@ -1392,7 +1392,8 @@
   }
 
   function hasBlockedCanvasCourseKeyword(value) {
-    return /\b(assignments?|files?|course analytics|view course stream)\b/i.test(String(value || ""));
+    const label = String(value || "").replace(/\s+/g, " ").trim();
+    return /\b(course analytics|view course stream)\b/i.test(label) || /^(assignments?|files?)$/i.test(label);
   }
 
   function loadState() {
@@ -3154,7 +3155,13 @@
       canvas: ""
     };
     const fallbackCourseId = sourceCourseFallbacks[taskSource] || "";
-    const courseId = resolveIncomingCourseId(raw, taskSource, fallbackCourseId);
+    let courseId = resolveIncomingCourseId(raw, taskSource, fallbackCourseId);
+    if (taskSource === "canvas" && !hasRealCourseForCourses({ courseId }, state.courses)) {
+      const rawId = String(raw.courseId || raw.course_id || raw.context_code?.replace?.(/^course_/, "") || "").replace(/^canvas-course-/, "").trim();
+      const courseName = String(raw.courseName || raw.context_name || raw.course_name || "").trim();
+      const createdCourseId = ensureCanvasCourse({ id: rawId, name: courseName, course_code: raw.courseCode || raw.course_code || "" }, rawId);
+      if (createdCourseId) courseId = createdCourseId;
+    }
     if (!hasRealCourseForCourses({ courseId }, state.courses)) return null;
     const dueRaw = raw.dueDate || raw.due_at || raw.start_at || raw.startDate || raw.date;
     const dueDate = dueRaw ? new Date(dueRaw) : new Date(Date.now() + 86400000);

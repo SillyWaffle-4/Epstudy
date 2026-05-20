@@ -178,7 +178,6 @@ async function scrapeCanvasCourses() {
     ...Array.from(document.querySelectorAll("a[href*='/courses/']"))
     .map(node => {
       const rawLabel = text(node);
-      if (hasBlockedCanvasCourseKeyword(rawLabel)) return null;
       const label = cleanCanvasCourseName(rawLabel);
       const courseId = canvasCourseIdFromCourseHomeHref(node.getAttribute?.("href") || "");
       if (!courseId || !isLikelyCanvasCourseName(label)) return null;
@@ -256,7 +255,8 @@ function isLikelyCanvasCourseName(label) {
 }
 
 function hasBlockedCanvasCourseKeyword(value) {
-  return /\b(assignments?|files?|course analytics|view course stream)\b/i.test(String(value || ""));
+  const label = String(value || "").replace(/\s+/g, " ").trim();
+  return /\b(course analytics|view course stream)\b/i.test(label) || /^(assignments?|files?)$/i.test(label);
 }
 
 function isCanvasNavigationLabel(label) {
@@ -328,15 +328,25 @@ async function ensureCoursesForCanvasTasks(tasks, courses) {
     .filter(courseId => /^\d+$/.test(courseId) && !knownCourseIds.has(courseId))))
     .slice(0, 50);
 
-  for (const courseId of missingCourseIds) {
+  const fetchedCourses = await Promise.all(missingCourseIds.map(courseId => {
     const task = tasks.find(row => String(row?.courseId || "") === `canvas-course-${courseId}`);
-    const course = await fetchCanvasCourseForTask(courseId, task);
-    if (!course) continue;
+    return withTimeout(fetchCanvasCourseForTask(courseId, task), 2500, null);
+  }));
+
+  for (const course of fetchedCourses) {
+    if (!course || knownCourseIds.has(course.id)) continue;
     resolvedCourses.push(course);
     knownCourseIds.add(course.id);
   }
 
   return dedupeCourses(resolvedCourses);
+}
+
+function withTimeout(promise, timeoutMs, fallback) {
+  return Promise.race([
+    promise,
+    new Promise(resolve => setTimeout(() => resolve(fallback), timeoutMs))
+  ]);
 }
 
 async function fetchCanvasCourseForTask(courseIdRaw, task) {
@@ -577,6 +587,7 @@ async function normalizeCanvasApiTask(item) {
     estimatedMinutes: 30,
     source: "canvas",
     courseId: courseIdRaw ? `canvas-course-${courseIdRaw}` : undefined,
+    courseName: cleanCanvasCourseName(assignment?.context_name || item?.context_name || item?.course_name || ""),
     externalKey: `canvas:${courseIdRaw || "x"}:${assignmentId}`,
     canvasUrl: absoluteCanvasUrl(assignment?.html_url || item?.html_url || item?.url || `/courses/${courseIdRaw}/assignments/${assignmentId}`),
     completed: Boolean(submission.completed || item?.submitted || item?.completed || item?.workflow_state === "completed"),
@@ -623,6 +634,7 @@ async function normalizeCanvasAssignment(row, courseIdOverride = "") {
     estimatedMinutes: Math.max(10, Math.min(180, Number(row?.points_possible) ? Math.round(Number(row.points_possible) * 1.5) : 30)),
     source: "canvas",
     courseId: courseIdRaw ? `canvas-course-${courseIdRaw}` : undefined,
+    courseName: cleanCanvasCourseName(row?.context_name || row?.course_name || ""),
     externalKey: `canvas:${courseIdRaw || "x"}:${assignmentId}`,
     canvasUrl: absoluteCanvasUrl(row?.html_url || `/courses/${courseIdRaw}/assignments/${assignmentId}`),
     completed: Boolean(submission.completed),
@@ -763,6 +775,7 @@ function canvasTaskFromNode(node) {
   if (!date) return null;
 
   const assignmentId = assignmentMatch?.[1] || stableId("canvas", title, date);
+  const courseName = canvasCourseNameFromTaskNode(node, courseIdRaw, title);
   return {
     id: `canvas-${courseIdRaw}-${assignmentId}`,
     title,
@@ -770,9 +783,23 @@ function canvasTaskFromNode(node) {
     estimatedMinutes: 30,
     source: "canvas",
     courseId: `canvas-course-${courseIdRaw}`,
+    courseName,
     externalKey: assignmentMatch ? `canvas:${courseIdRaw}:${assignmentId}` : stableId("canvas", title, date),
     canvasUrl: absoluteCanvasUrl(href || `/courses/${courseIdRaw}/assignments/${assignmentId}`)
   };
+}
+
+function canvasCourseNameFromTaskNode(node, courseIdRaw, title) {
+  const courseId = String(courseIdRaw || "").trim();
+  const exactLink = Array.from(node?.querySelectorAll?.(`a[href*="/courses/${courseId}"]`) || [])
+    .find(link => canvasCourseIdFromCourseHomeHref(link.getAttribute?.("href") || "") === courseId);
+  const linked = cleanCanvasCourseName(text(exactLink?.querySelector?.(".ellipsible")) || text(exactLink));
+  if (isLikelyCanvasCourseName(linked) && linked.toLowerCase() !== String(title || "").toLowerCase()) return linked;
+
+  const candidates = Array.from(node?.querySelectorAll?.("span, div, p") || [])
+    .map(candidate => cleanCanvasCourseName(text(candidate)))
+    .filter(label => label && label.toLowerCase() !== String(title || "").toLowerCase());
+  return candidates.find(label => isLikelyCanvasCourseName(label)) || "";
 }
 
 function taskContainerForAssignmentLink(link) {

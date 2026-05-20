@@ -124,7 +124,8 @@ function cleanCanvasCourseName(value) {
 }
 
 function hasBlockedCanvasCourseKeyword(value) {
-  return /\b(assignments?|files?|course analytics|view course stream)\b/i.test(String(value || ""));
+  const label = String(value || "").replace(/\s+/g, " ").trim();
+  return /\b(course analytics|view course stream)\b/i.test(label) || /^(assignments?|files?)$/i.test(label);
 }
 
 function isCanvasNavigationLabel(label) {
@@ -152,15 +153,25 @@ async function ensureCoursesForCanvasTasks(tasks, courses) {
     .filter(courseId => /^\d+$/.test(courseId) && !knownCourseIds.has(courseId))))
     .slice(0, 50);
 
-  for (const courseId of missingCourseIds) {
+  const fetchedCourses = await Promise.all(missingCourseIds.map(courseId => {
     const task = tasks.find(row => String(row?.courseId || "") === `canvas-course-${courseId}`);
-    const course = await fetchCanvasCourseForTask(courseId, task);
-    if (!course) continue;
+    return withTimeout(fetchCanvasCourseForTask(courseId, task), 2500, null);
+  }));
+
+  for (const course of fetchedCourses) {
+    if (!course || knownCourseIds.has(course.id)) continue;
     resolvedCourses.push(course);
     knownCourseIds.add(course.id);
   }
 
   return dedupeCourses(resolvedCourses);
+}
+
+function withTimeout(promise, timeoutMs, fallback) {
+  return Promise.race([
+    promise,
+    new Promise(resolve => setTimeout(() => resolve(fallback), timeoutMs))
+  ]);
 }
 
 async function fetchCanvasCourseForTask(courseIdRaw, task) {
@@ -389,6 +400,7 @@ async function normalizeCanvasApiTask(item) {
     estimatedMinutes: 30,
     source: "canvas",
     courseId: courseIdRaw ? `canvas-course-${courseIdRaw}` : undefined,
+    courseName: cleanCanvasCourseName(assignment?.context_name || item?.context_name || item?.course_name || ""),
     externalKey: `canvas:${courseIdRaw || "x"}:${assignmentId}`,
     canvasUrl: assignment?.html_url || item?.html_url || item?.url || "",
     completed: Boolean(submission.completed || item?.submitted || item?.completed || item?.workflow_state === "completed"),
@@ -435,6 +447,7 @@ async function normalizeCanvasAssignment(row, courseIdOverride = "") {
     estimatedMinutes: Math.max(10, Math.min(180, Number(row?.points_possible) ? Math.round(Number(row.points_possible) * 1.5) : 30)),
     source: "canvas",
     courseId: courseIdRaw ? `canvas-course-${courseIdRaw}` : undefined,
+    courseName: cleanCanvasCourseName(row?.context_name || row?.course_name || ""),
     externalKey: `canvas:${courseIdRaw || "x"}:${assignmentId}`,
     canvasUrl: row?.html_url || "",
     completed: Boolean(submission.completed),
@@ -573,6 +586,7 @@ function canvasTaskFromNode(node) {
   const date = parseDate(timeNode?.getAttribute?.("datetime")) || parseDateFromText(text(timeNode) || text(node));
   if (!date) return null;
   const assignmentId = assignmentMatch?.[1] || stableId("canvas", title, date);
+  const courseName = canvasCourseNameFromTaskNode(node, courseIdRaw, title);
   return {
     id: courseIdRaw ? `canvas-${courseIdRaw}-${assignmentId}` : stableId("canvas", title, date),
     title,
@@ -580,9 +594,35 @@ function canvasTaskFromNode(node) {
     estimatedMinutes: 30,
     source: "canvas",
     courseId: courseIdRaw ? `canvas-course-${courseIdRaw}` : undefined,
+    courseName,
     externalKey: courseIdRaw && assignmentMatch ? `canvas:${courseIdRaw}:${assignmentId}` : stableId("canvas", title, date),
     canvasUrl: href || ""
   };
+}
+
+function canvasCourseNameFromTaskNode(node, courseIdRaw, title) {
+  const courseId = String(courseIdRaw || "").trim();
+  const exactLink = Array.from(node?.querySelectorAll?.(`a[href*="/courses/${courseId}"]`) || [])
+    .find(link => canvasCourseIdFromCourseHomeHref(link.getAttribute?.("href") || "") === courseId);
+  const linked = cleanCanvasCourseName(text(exactLink?.querySelector?.(".ellipsible")) || text(exactLink));
+  if (isLikelyCanvasVisibleCourseName(linked, title)) return linked;
+
+  const candidates = Array.from(node?.querySelectorAll?.("span, div, p") || [])
+    .map(candidate => cleanCanvasCourseName(text(candidate)))
+    .filter(label => label && label.toLowerCase() !== String(title || "").toLowerCase());
+  return candidates.find(label => isLikelyCanvasVisibleCourseName(label, title)) || "";
+}
+
+function isLikelyCanvasVisibleCourseName(label, title) {
+  const clean = String(label || "").trim();
+  if (!clean || clean.length < 2 || clean.length > 120) return false;
+  if (clean.toLowerCase() === String(title || "").toLowerCase()) return false;
+  if (hasBlockedCanvasCourseKeyword(clean) || isCanvasNavigationLabel(clean)) return false;
+  if (clean.includes(":")) return false;
+  if (/^(hw|cw|qa|ma)\b\s*[-:]/i.test(clean)) return false;
+  if (/\b\d+\s*pts?\b|\bdue\b|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i.test(clean)) return false;
+  if (/\b(chapter\s*\d+|quiz|project|poem|worksheet|homework|classwork)\b/i.test(clean)) return false;
+  return true;
 }
 
 function taskContainerForAssignmentLink(link) {
