@@ -573,13 +573,37 @@ function scrapeVisibleCanvasTasks() {
   return rows;
 }
 
-function scrapeCanvasAssignmentLinkTasks() {
+function isCanvasAssignmentDetailHref(href) {
+  return /\/courses\/\d+\/assignments\/\d+(?:[/?#]|$)/i.test(String(href || ""));
+}
+
+function isInsideCanvasDashboardCard(node) {
+  return Boolean(node?.closest?.(".ic-DashboardCard, [class*='DashboardCard'], [data-testid='draggable-card']"));
+}
+
+function isInsideCanvasRecentFeedback(node) {
+  return Boolean(node?.closest?.(".recent_feedback, [class*='recent_feedback'], .events_list.recent_feedback"));
+}
+
+function isCanvasDashboardCardActionLink(link) {
+  const href = String(link?.getAttribute?.("href") || "");
+  return /\/courses\/\d+\/(?:assignments|files|discussion_topics|announcements|modules|grades|pages|people|quizzes)\/?(?:[?#].*)?$/i.test(href)
+    || Boolean(link?.closest?.(".ic-DashboardCard__action-container, [class*='DashboardCard__action']"));
+}
+
+function isIgnoredCanvasTaskRegion(node) {
+  return isInsideCanvasDashboardCard(node) || isInsideCanvasRecentFeedback(node);
+}
+
+function scrapeCanvasAssignmentLinkTasks(root = document) {
   const rows = [];
-  const links = Array.from(document.querySelectorAll([
+  const links = Array.from(root.querySelectorAll([
     "a[href*='/courses/'][href*='/assignments/']",
     "a[href*='/assignments/']"
   ].join(",")));
   for (const link of links) {
+    const href = link.getAttribute?.("href") || "";
+    if (!isCanvasAssignmentDetailHref(href) || isCanvasDashboardCardActionLink(link) || isIgnoredCanvasTaskRegion(link)) continue;
     const row = canvasTaskFromNode(taskContainerForAssignmentLink(link));
     if (row) rows.push(row);
   }
@@ -599,14 +623,19 @@ function detectCanvasDashboardView() {
 
 function canvasTaskFromNode(node) {
   if (!node) return null;
+  if (isIgnoredCanvasTaskRegion(node)) return null;
   const titleNode = node.querySelector?.("a[href*='/assignments/'], a, .title, .ig-title, [data-testid*='title'], h2, h3") || node;
-  const href = titleNode.getAttribute?.("href") || node.querySelector?.("a[href*='/assignments/']")?.getAttribute?.("href") || "";
+  const assignmentLink = titleNode.matches?.("a[href*='/assignments/']")
+    ? titleNode
+    : node.querySelector?.("a[href*='/assignments/']");
+  const href = assignmentLink?.getAttribute?.("href") || titleNode.getAttribute?.("href") || "";
+  if (!isCanvasAssignmentDetailHref(href)) return null;
   const courseMatch = href.match(/\/courses\/(\d+)/);
   const assignmentMatch = href.match(/\/assignments\/(\d+)/);
   const courseIdRaw = courseMatch?.[1] || "";
-  if (!courseIdRaw) return null;
+  if (!courseIdRaw || !assignmentMatch) return null;
 
-  const title = normalizeAssignmentTitle(text(titleNode));
+  const title = normalizeAssignmentTitle(text(assignmentLink || titleNode));
   if (!title || title.length < 3 || /dashboard|calendar|inbox|account|recent feedback/i.test(title)) return null;
   const timeNode = node.querySelector?.("time, [datetime], .due, .date, .todo-date, [class*='Due'], [class*='due'], [class*='date']");
   const date = parseDate(timeNode?.getAttribute?.("datetime")) || parseDateFromText(text(timeNode) || text(node));
@@ -637,6 +666,15 @@ function taskContainerForAssignmentLink(link) {
 
 function findCanvasDashboardTodoScopes() {
   const scopes = [];
+  Array.from(document.querySelectorAll([
+    ".Sidebar__TodoListContainer",
+    "[data-testid='ToDoSidebar']",
+    "[data-testid*='todo-sidebar']",
+    "[class*='TodoListContainer']",
+    "[class*='ToDoSidebar']"
+  ].join(","))).forEach(scope => {
+    if (scope.querySelector?.("a[href*='/assignments/']") && !scopes.includes(scope)) scopes.push(scope);
+  });
   const headings = Array.from(document.querySelectorAll("h1, h2, h3, h4, [role='heading']"));
   for (const heading of headings) {
     const label = text(heading);
@@ -649,7 +687,7 @@ function findCanvasDashboardTodoScopes() {
     }
     if (scope && !scopes.includes(scope)) scopes.push(scope);
   }
-  Array.from(document.querySelectorAll("aside, #right-side, .right-side-wrapper, [class*='ToDo'], [class*='todo']")).forEach(scope => {
+  if (!scopes.length) Array.from(document.querySelectorAll("aside, #right-side, .right-side-wrapper, [class*='ToDo'], [class*='todo']")).forEach(scope => {
     if (scope.querySelector?.("a[href*='/assignments/']") && !scopes.includes(scope)) scopes.push(scope);
   });
   return scopes;
@@ -657,14 +695,9 @@ function findCanvasDashboardTodoScopes() {
 
 function scrapeCanvasDashboardCardTasks() {
   const scopes = findCanvasDashboardTodoScopes();
-  const searchRoots = [...scopes, document];
   const rows = [];
-  for (const scope of searchRoots) {
-    const links = Array.from(scope.querySelectorAll("a[href*='/courses/'][href*='/assignments/']"));
-    for (const link of links) {
-      const row = canvasTaskFromNode(taskContainerForAssignmentLink(link));
-      if (row) rows.push(row);
-    }
+  for (const scope of scopes) {
+    rows.push(...scrapeCanvasAssignmentLinkTasks(scope));
   }
   return rows;
 }
@@ -672,7 +705,7 @@ function scrapeCanvasDashboardCardTasks() {
 async function scrapeCanvasTasks(canvasDashboardView = detectCanvasDashboardView()) {
   const apiRows = await scrapeCanvasApiTasks();
   const visibleRows = canvasDashboardView === "card"
-    ? [...scrapeCanvasDashboardCardTasks(), ...scrapeCanvasAssignmentLinkTasks(), ...scrapeVisibleCanvasTasks()]
+    ? scrapeCanvasDashboardCardTasks()
     : [...scrapeCanvasAssignmentLinkTasks(), ...scrapeVisibleCanvasTasks(), ...scrapeCanvasDashboardCardTasks()];
   return dedupe([...apiRows, ...visibleRows]);
 }
