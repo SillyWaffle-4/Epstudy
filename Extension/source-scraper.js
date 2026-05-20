@@ -75,7 +75,9 @@ async function scrapeCanvasCourses() {
     // The visible page scrape below is still useful if Canvas API access is unavailable.
   }
 
-  const visibleCourses = Array.from(document.querySelectorAll("a[href*='/courses/']"))
+  const visibleCourses = [
+    ...canvasCoursesFromEnv(),
+    ...Array.from(document.querySelectorAll("a[href*='/courses/']"))
     .map(node => {
       const rawLabel = text(node);
       const id = canvasCourseIdFromCourseHomeHref(node.getAttribute?.("href") || "");
@@ -84,9 +86,33 @@ async function scrapeCanvasCourses() {
       if (!label || label.length > 90 || isCanvasNavigationLabel(label)) return null;
       return { id, name: label, course_code: "", source: "canvas" };
     })
-    .filter(Boolean);
+    .filter(Boolean)
+  ];
 
   return dedupeCourses([...courses, ...visibleCourses]);
+}
+
+function canvasCoursesFromEnv() {
+  const env = window.ENV || {};
+  const rows = [
+    ...(Array.isArray(env.STUDENT_PLANNER_COURSES) ? env.STUDENT_PLANNER_COURSES : []),
+    ...(Array.isArray(env.COURSES) ? env.COURSES : []),
+    ...(Array.isArray(env.courses) ? env.courses : [])
+  ];
+  return rows.map(course => {
+    const id = String(course?.id || course?.course_id || course?.assetString?.match?.(/course_(\d+)/)?.[1] || "").trim();
+    const rawName = course?.shortName || course?.originalName || course?.name || course?.longName || course?.courseCode || "";
+    const rawCode = course?.courseCode || course?.code || "";
+    if (hasBlockedCanvasCourseKeyword(`${rawName} ${rawCode}`)) return null;
+    const name = cleanCanvasCourseName(rawName);
+    if (!id || !name || name.length > 90 || isCanvasNavigationLabel(name)) return null;
+    return {
+      id,
+      name,
+      course_code: cleanCanvasCourseName(rawCode),
+      source: "canvas"
+    };
+  }).filter(Boolean);
 }
 
 function cleanCanvasCourseName(value) {

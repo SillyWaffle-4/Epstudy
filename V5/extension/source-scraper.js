@@ -178,6 +178,7 @@ async function scrapeCanvasCourses() {
   }
 
   const visibleCourses = [
+    ...canvasCoursesFromEnv(),
     ...scrapeCanvasDashboardCardCourses(),
     ...Array.from(document.querySelectorAll("a[href*='/courses/']"))
     .map(node => {
@@ -192,6 +193,29 @@ async function scrapeCanvasCourses() {
   ];
 
   return dedupeCourses([...courses, ...visibleCourses]);
+}
+
+function canvasCoursesFromEnv() {
+  const env = window.ENV || {};
+  const rows = [
+    ...(Array.isArray(env.STUDENT_PLANNER_COURSES) ? env.STUDENT_PLANNER_COURSES : []),
+    ...(Array.isArray(env.COURSES) ? env.COURSES : []),
+    ...(Array.isArray(env.courses) ? env.courses : [])
+  ];
+  return rows.map(course => {
+    const id = String(course?.id || course?.course_id || course?.assetString?.match?.(/course_(\d+)/)?.[1] || "").trim();
+    const rawName = course?.shortName || course?.originalName || course?.name || course?.longName || course?.courseCode || "";
+    const rawCode = course?.courseCode || course?.code || "";
+    if (hasBlockedCanvasCourseKeyword(`${rawName} ${rawCode}`)) return null;
+    const name = cleanCanvasCourseName(rawName);
+    if (!id || !isLikelyCanvasCourseName(name)) return null;
+    return {
+      id,
+      name,
+      course_code: cleanCanvasCourseName(rawCode),
+      source: "canvas"
+    };
+  }).filter(Boolean);
 }
 
 function dashboardCoursesFromApiCards(cards) {
