@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EPStudy Simple</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy: #002b5c;
+    --gold: #ffc72c;
+    --bg: #f5f7fb;
+    --panel: #ffffff;
+    --line: #dbe3ef;
+    --text: #111827;
+    --muted: #64748b;
+    --good: #15803d;
+    --danger: #dc2626;
+    --shadow: 0 18px 38px -28px rgb(15 23 42 / 0.45);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif; line-height: 1.45; }
+  button, input, select { font: inherit; }
+  .shell { width: min(1180px, calc(100% - 28px)); margin: 0 auto; padding: 18px 0 30px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: var(--shadow); }
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .logo { width: 42px; height: 42px; border-radius: 8px; object-fit: contain; background: var(--navy); }
+  .eyebrow { margin: 0; color: var(--muted); font-size: 0.73rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
+  h1 { margin: 0; font-size: clamp(1.35rem, 2vw, 1.8rem); letter-spacing: 0; }
+  .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .version-switcher { display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-weight: 800; font-size: 0.76rem; background: #f8fafc; }
+  select, input { min-height: 38px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--text); padding: 8px 10px; }
+  .button, button { min-height: 38px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--text); font-weight: 800; padding: 8px 11px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+  .button:hover, button:hover { border-color: var(--navy); }
+  .primary { background: var(--navy); border-color: var(--navy); color: #fff; }
+  .danger { color: var(--danger); }
+  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; }
+  .tab { background: #eef3f9; border-color: transparent; }
+  .tab.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .page { display: none; }
+  .page.active { display: block; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; box-shadow: var(--shadow); }
+  .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+  .muted { color: var(--muted); }
+  .grid { display: grid; gap: 12px; }
+  .task-form { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(130px, 0.5fr) minmax(130px, 0.4fr) minmax(100px, 0.3fr) auto; gap: 8px; align-items: end; }
+  .task-list { display: grid; gap: 8px; }
+  .task { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: #fff; }
+  .task.done { opacity: 0.62; }
+  .task-title { font-weight: 800; overflow-wrap: anywhere; }
+  .task-meta { color: var(--muted); font-size: 0.83rem; margin-top: 2px; }
+  .task-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .calendar-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+  .day-name { color: var(--muted); font-size: 0.74rem; font-weight: 800; text-align: center; padding: 4px; }
+  .day { min-height: 92px; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 7px; text-align: left; align-content: start; display: grid; gap: 4px; }
+  .day.outside { opacity: 0.42; }
+  .day.selected { outline: 3px solid color-mix(in srgb, var(--gold) 55%, transparent); border-color: var(--gold); }
+  .date-num { font-weight: 800; }
+  .pill { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-radius: 5px; padding: 2px 5px; background: #e8f1ff; color: var(--navy); font-size: 0.72rem; font-weight: 700; }
+  .timer-layout { display: grid; grid-template-columns: minmax(260px, 0.9fr) minmax(280px, 1fr); gap: 14px; align-items: stretch; }
+  .timer-face { display: grid; place-items: center; min-height: 280px; border: 1px solid var(--line); border-radius: 8px; background: linear-gradient(180deg, #fff, #f8fafc); }
+  .timer-time { font-size: clamp(3.6rem, 9vw, 6.5rem); font-weight: 800; font-variant-numeric: tabular-nums; color: var(--navy); letter-spacing: 0; line-height: 1; }
+  .timer-controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .stat { border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: #fff; }
+  .stat strong { display: block; font-size: 1.25rem; }
+  .status { margin-top: 10px; color: var(--muted); min-height: 1.4em; }
+  @media (max-width: 800px) {
+    .tabs, .timer-layout, .stats { grid-template-columns: 1fr; }
+    .task-form { grid-template-columns: 1fr; }
+    .task { grid-template-columns: auto 1fr; }
+    .task-actions { grid-column: 1 / -1; justify-content: flex-start; }
+    .calendar-grid { gap: 4px; }
+    .day { min-height: 74px; padding: 5px; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="topbar">
+    <div class="brand">
+      <img class="logo" src="../../shared/logo.png" alt="EPStudy logo" />
+      <div>
+        <p class="eyebrow">EPStudy Simple</p>
+        <h1>Tasks, Calendar, Timer</h1>
+      </div>
+    </div>
+    <div class="actions">
+      <label class="version-switcher" for="epstudyVersionSelect">
+        <span>Version</span>
+        <select id="epstudyVersionSelect" aria-label="Switch EPStudy version">
+          <option value="v2">V2</option>
+          <option value="v3">V3</option>
+          <option value="simple">Simple</option>
+        </select>
+      </label>
+      <button id="syncBtn" class="primary" type="button">Sync</button>
+      <a class="button" href="../../index.html">Chooser</a>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Simple navigation">
+    <button class="tab active" type="button" data-page="tasks">Tasks</button>
+    <button class="tab" type="button" data-page="calendar">Calendar</button>
+    <button class="tab" type="button" data-page="timer">Timer</button>
+  </nav>
+
+  <main>
+    <section id="page-tasks" class="page active">
+      <div class="panel grid">
+        <div class="toolbar">
+          <div>
+            <strong>Tasks</strong>
+            <span id="taskCount" class="muted"></span>
+          </div>
+          <select id="taskFilter" aria-label="Task filter">
+            <option value="open">Open</option>
+            <option value="all">All</option>
+            <option value="done">Done</option>
+          </select>
+        </div>
+        <form id="taskForm" class="task-form">
+          <input id="taskTitle" type="text" placeholder="Task title" required />
+          <select id="taskCourse" aria-label="Course"></select>
+          <input id="taskDate" type="date" required />
+          <input id="taskMinutes" type="number" min="1" max="360" value="25" required />
+          <button class="primary" type="submit">Add</button>
+        </form>
+        <div id="taskList" class="task-list"></div>
+      </div>
+    </section>
+
+    <section id="page-calendar" class="page">
+      <div class="panel">
+        <div class="calendar-head">
+          <button id="prevMonth" type="button">Prev</button>
+          <strong id="calendarTitle"></strong>
+          <button id="nextMonth" type="button">Next</button>
+        </div>
+        <div id="calendarGrid" class="calendar-grid"></div>
+        <div style="margin-top: 14px;">
+          <strong id="selectedDayTitle">Selected day</strong>
+          <div id="selectedDayTasks" class="task-list" style="margin-top: 8px;"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="page-timer" class="page">
+      <div class="panel timer-layout">
+        <div>
+          <div class="timer-face">
+            <div>
+              <div id="timerDisplay" class="timer-time">25:00</div>
+              <div id="timerStatus" class="status">Ready.</div>
+            </div>
+          </div>
+          <div class="timer-controls">
+            <button id="timerStart" class="primary" type="button">Start</button>
+            <button id="timerReset" type="button">Reset</button>
+            <button id="timerDone" type="button">Done</button>
+          </div>
+        </div>
+        <div class="grid">
+          <div>
+            <label class="muted" for="timerMinutes">Minutes</label>
+            <input id="timerMinutes" type="number" min="1" max="180" value="25" style="width: 100%;" />
+          </div>
+          <div>
+            <label class="muted" for="timerTask">Focus task</label>
+            <select id="timerTask" style="width: 100%;"></select>
+          </div>
+          <div class="stats">
+            <div class="stat"><strong id="sessionCount">0</strong><span class="muted">sessions</span></div>
+            <div class="stat"><strong id="minuteCount">0</strong><span class="muted">minutes</span></div>
+            <div class="stat"><strong id="streakCount">0</strong><span class="muted">streak</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+  const STORAGE_KEY = "epstudy_secure_pro_v6";
+  const VERSION_STORAGE_KEY = "epstudy_v5_selected_version";
+  const EPSTUDY_APP_VERSION = "simple";
+  const VERSION_PATHS = { v2: "../v2/index.html", v3: "../v3/index.html", simple: "index.html" };
+  const DEFAULT_COURSES = [
+    { id: "course-personal", name: "Personal", code: "PERS", color: "#8b5cf6" },
+    { id: "course-sports", name: "Team Event", code: "TEAM", color: "#10b981" }
+  ];
+  const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const state = loadState();
+  let currentPage = new URLSearchParams(window.location.search).get("page") || "tasks";
+  let taskFilter = "open";
+  let selectedDate = new Date();
+  let timerTotal = Math.max(1, Number(state.timerMinutes || 25)) * 60;
+  let timerRemaining = timerTotal;
+  let timerId = null;
+
+  function bridgeTargetOrigin() {
+    return window.location.protocol === "file:" || window.location.origin === "null" ? "*" : window.location.origin;
+  }
+
+  function publishVersion(source = "init") {
+    try { localStorage.setItem(VERSION_STORAGE_KEY, EPSTUDY_APP_VERSION); } catch {}
+    window.postMessage({ type: "EPSTUDY_VERSION_SELECTED", version: EPSTUDY_APP_VERSION, source }, bridgeTargetOrigin());
+  }
+
+  function switchVersion(version) {
+    const next = Object.prototype.hasOwnProperty.call(VERSION_PATHS, version) ? version : "simple";
+    saveState();
+    try { localStorage.setItem(VERSION_STORAGE_KEY, next); } catch {}
+    window.postMessage({ type: "EPSTUDY_VERSION_SELECTED", version: next, source: "switch" }, bridgeTargetOrigin());
+    if (next !== "simple") window.location.href = VERSION_PATHS[next];
+  }
+
+  function loadState() {
+    const fallback = {
+      tasks: [],
+      courses: DEFAULT_COURSES.map(course => ({ ...course })),
+      selectedTaskId: null,
+      sessionsCompleted: 0,
+      focusMinutes: 0,
+      streakDays: 0,
+      lastSessionDate: null,
+      timerMinutes: 25,
+      calendarYear: new Date().getFullYear(),
+      calendarMonth: new Date().getMonth(),
+      calendarDay: new Date().getDate(),
+      extensionSync: { status: {}, sources: {}, teamSnapLinks: [] }
+    };
+    try {
+      const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+      if (!parsed || typeof parsed !== "object") return fallback;
+      const merged = { ...fallback, ...parsed };
+      merged.courses = normalizeCourses(merged.courses);
+      merged.tasks = normalizeTasks(merged.tasks, merged.courses);
+      return merged;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function saveState() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+    publishWebsiteTasks();
+  }
+
+  function normalizeCourses(courses) {
+    const seen = new Set();
+    const rows = (Array.isArray(courses) ? courses : [])
+      .map((course, index) => {
+        const id = String(course?.id || `course-${index}`).trim();
+        const name = String(course?.name || course?.course_code || "").replace(/\s+/g, " ").trim();
+        const code = String(course?.code || course?.course_code || "").replace(/\s+/g, " ").trim();
+        const color = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(course?.color || "") ? course.color : colorFromString(name || id);
+        if (!id || !name || isBadCanvasCourse(id, name, code)) return null;
+        const key = id.toLowerCase();
+        if (seen.has(key)) return null;
+        seen.add(key);
+        return { id, name, code, color, source: course?.source || "" };
+      })
+      .filter(Boolean);
+    for (const course of DEFAULT_COURSES) {
+      if (!rows.some(row => row.id === course.id)) rows.push({ ...course });
+    }
+    return rows;
+  }
+
+  function isBadCanvasCourse(id, name, code) {
+    if (!String(id).startsWith("canvas-course-")) return false;
+    if (/^Canvas\s+\d+$/i.test(name) && (!code || /^C\d+$/i.test(code))) return true;
+    return /\b(assignments?|files?)\b/i.test(`${name} ${code}`)
+      || /^(announcements?|assignments?|files?|dashboard|courses?|recent feedback|show all)$/i.test(name);
+  }
+
+  function normalizeTasks(tasks, courses) {
+    return (Array.isArray(tasks) ? tasks : [])
+      .map(task => {
+        const courseId = String(task?.courseId || "").trim();
+        if (!courses.some(course => course.id === courseId)) return null;
+        const dueDate = parseDate(task?.dueDate || task?.due_at || task?.start_at || task?.date);
+        if (!dueDate) return null;
+        return {
+          id: String(task?.id || task?.externalKey || `${Date.now()}-${Math.random().toString(16).slice(2)}`),
+          title: String(task?.title || task?.name || "Task").replace(/\s+/g, " ").trim(),
+          dueDate: dueDate.toISOString(),
+          estimatedMinutes: Math.max(1, Math.min(360, Number(task?.estimatedMinutes || task?.minutes || 25))),
+          source: String(task?.source || "manual").toLowerCase(),
+          courseId,
+          completed: Boolean(task?.completed),
+          externalKey: String(task?.externalKey || ""),
+          canvasUrl: task?.canvasUrl || task?.html_url || task?.url || "",
+          eventUrl: task?.eventUrl || ""
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+  }
+
+  function parseDate(value) {
+    const date = new Date(value || "");
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  function colorFromString(value) {
+    let hash = 0;
+    for (const char of String(value || "EPStudy")) hash = (hash * 31 + char.charCodeAt(0)) | 0;
+    return `hsl(${Math.abs(hash) % 360} 62% 42%)`;
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
+  }
+
+  function courseById(id) {
+    return state.courses.find(course => course.id === id) || null;
+  }
+
+  function openTasks() {
+    return state.tasks.filter(task => taskFilter === "all" || (taskFilter === "done" ? task.completed : !task.completed));
+  }
+
+  function sameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  }
+
+  function dueLabel(value) {
+    const date = new Date(value);
+    return date.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  }
+
+  function isoDate(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  }
+
+  function setPage(page) {
+    currentPage = ["tasks", "calendar", "timer"].includes(page) ? page : "tasks";
+    document.querySelectorAll(".tab").forEach(tab => tab.classList.toggle("active", tab.dataset.page === currentPage));
+    document.querySelectorAll(".page").forEach(panel => panel.classList.toggle("active", panel.id === `page-${currentPage}`));
+    const url = new URL(window.location);
+    url.searchParams.set("page", currentPage);
+    history.replaceState({}, "", url);
+    render();
+  }
+
+  function render() {
+    renderCourses();
+    renderTasks();
+    renderCalendar();
+    renderTimer();
+  }
+
+  function renderCourses() {
+    const courseSelect = document.getElementById("taskCourse");
+    const taskSelect = document.getElementById("timerTask");
+    if (courseSelect) {
+      courseSelect.innerHTML = state.courses.map(course => `<option value="${escapeHtml(course.id)}">${escapeHtml(course.name)}${course.code ? ` (${escapeHtml(course.code)})` : ""}</option>`).join("");
+    }
+    if (taskSelect) {
+      const options = state.tasks.filter(task => !task.completed).map(task => `<option value="${escapeHtml(task.id)}">${escapeHtml(task.title)}</option>`).join("");
+      taskSelect.innerHTML = `<option value="">No task selected</option>${options}`;
+      taskSelect.value = state.selectedTaskId || "";
+    }
+  }
+
+  function renderTasks() {
+    const rows = openTasks();
+    const count = document.getElementById("taskCount");
+    if (count) count.textContent = ` ${rows.length} shown`;
+    const list = document.getElementById("taskList");
+    if (!list) return;
+    if (!rows.length) {
+      list.innerHTML = `<div class="muted">No tasks here.</div>`;
+      return;
+    }
+    list.innerHTML = rows.map(task => {
+      const course = courseById(task.courseId);
+      return `<article class="task${task.completed ? " done" : ""}">
+        <input type="checkbox" data-action="toggle" data-id="${escapeHtml(task.id)}" ${task.completed ? "checked" : ""} aria-label="Toggle task" />
+        <div>
+          <div class="task-title">${escapeHtml(task.title)}</div>
+          <div class="task-meta">${escapeHtml(course?.name || "Course")} · ${task.estimatedMinutes}m · ${dueLabel(task.dueDate)}</div>
+        </div>
+        <div class="task-actions">
+          <button type="button" data-action="timer" data-id="${escapeHtml(task.id)}">Timer</button>
+          ${task.canvasUrl || task.eventUrl ? `<button type="button" data-action="open" data-id="${escapeHtml(task.id)}">Open</button>` : ""}
+          <button class="danger" type="button" data-action="delete" data-id="${escapeHtml(task.id)}">Delete</button>
+        </div>
+      </article>`;
+    }).join("");
+  }
+
+  function renderCalendar() {
+    const title = document.getElementById("calendarTitle");
+    const grid = document.getElementById("calendarGrid");
+    if (!title || !grid) return;
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth();
+    title.textContent = selectedDate.toLocaleString([], { month: "long", year: "numeric" });
+    const first = new Date(year, month, 1);
+    const start = new Date(year, month, 1 - first.getDay());
+    const cells = [];
+    for (const label of DAY_NAMES) cells.push(`<div class="day-name">${label}</div>`);
+    for (let i = 0; i < 42; i++) {
+      const day = new Date(start);
+      day.setDate(start.getDate() + i);
+      const tasks = state.tasks.filter(task => sameDay(new Date(task.dueDate), day));
+      cells.push(`<button class="day${day.getMonth() !== month ? " outside" : ""}${sameDay(day, selectedDate) ? " selected" : ""}" type="button" data-date="${isoDate(day)}">
+        <span class="date-num">${day.getDate()}</span>
+        ${tasks.slice(0, 3).map(task => `<span class="pill">${escapeHtml(task.title)}</span>`).join("")}
+      </button>`);
+    }
+    grid.innerHTML = cells.join("");
+    renderSelectedDay();
+  }
+
+  function renderSelectedDay() {
+    const title = document.getElementById("selectedDayTitle");
+    const list = document.getElementById("selectedDayTasks");
+    if (!title || !list) return;
+    title.textContent = selectedDate.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" });
+    const rows = state.tasks.filter(task => sameDay(new Date(task.dueDate), selectedDate));
+    list.innerHTML = rows.length ? rows.map(task => {
+      const course = courseById(task.courseId);
+      return `<article class="task${task.completed ? " done" : ""}">
+        <input type="checkbox" data-action="toggle" data-id="${escapeHtml(task.id)}" ${task.completed ? "checked" : ""} />
+        <div><div class="task-title">${escapeHtml(task.title)}</div><div class="task-meta">${escapeHtml(course?.name || "Course")} · ${dueLabel(task.dueDate)}</div></div>
+        <div class="task-actions"><button type="button" data-action="timer" data-id="${escapeHtml(task.id)}">Timer</button></div>
+      </article>`;
+    }).join("") : `<div class="muted">No tasks due on this day.</div>`;
+  }
+
+  function renderTimer() {
+    const display = document.getElementById("timerDisplay");
+    const minutes = Math.floor(timerRemaining / 60);
+    const seconds = timerRemaining % 60;
+    if (display) display.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    const input = document.getElementById("timerMinutes");
+    if (input && document.activeElement !== input) input.value = String(state.timerMinutes || 25);
+    const start = document.getElementById("timerStart");
+    if (start) start.textContent = timerId ? "Pause" : "Start";
+    document.getElementById("sessionCount").textContent = String(state.sessionsCompleted || 0);
+    document.getElementById("minuteCount").textContent = String(state.focusMinutes || 0);
+    document.getElementById("streakCount").textContent = String(state.streakDays || 0);
+  }
+
+  function setTimerMinutes(minutes) {
+    state.timerMinutes = Math.max(1, Math.min(180, Number(minutes) || 25));
+    timerTotal = state.timerMinutes * 60;
+    timerRemaining = timerTotal;
+    saveState();
+    renderTimer();
+  }
+
+  function toggleTimer() {
+    if (timerId) {
+      clearInterval(timerId);
+      timerId = null;
+      document.getElementById("timerStatus").textContent = "Paused.";
+      renderTimer();
+      return;
+    }
+    if (timerRemaining <= 0) timerRemaining = timerTotal;
+    document.getElementById("timerStatus").textContent = "Focusing.";
+    timerId = window.setInterval(() => {
+      timerRemaining -= 1;
+      if (timerRemaining <= 0) completeTimer();
+      renderTimer();
+    }, 1000);
+    renderTimer();
+  }
+
+  function resetTimer() {
+    clearInterval(timerId);
+    timerId = null;
+    timerRemaining = timerTotal;
+    document.getElementById("timerStatus").textContent = "Ready.";
+    renderTimer();
+  }
+
+  function completeTimer() {
+    clearInterval(timerId);
+    timerId = null;
+    const minutes = Math.max(1, Math.round(timerTotal / 60));
+    state.sessionsCompleted = Number(state.sessionsCompleted || 0) + 1;
+    state.focusMinutes = Number(state.focusMinutes || 0) + minutes;
+    const today = isoDate(new Date());
+    if (state.lastSessionDate !== today) {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      state.streakDays = state.lastSessionDate === isoDate(yesterday) ? Number(state.streakDays || 0) + 1 : 1;
+      state.lastSessionDate = today;
+    }
+    if (state.selectedTaskId) {
+      const task = state.tasks.find(row => row.id === state.selectedTaskId);
+      if (task) task.completed = true;
+    }
+    timerRemaining = timerTotal;
+    document.getElementById("timerStatus").textContent = "Session complete.";
+    saveState();
+    render();
+  }
+
+  function publishWebsiteTasks() {
+    window.postMessage({ type: "EPSTUDY_WEBSITE_TASKS", tasks: state.tasks, updatedAt: new Date().toISOString(), websiteVersion: EPSTUDY_APP_VERSION }, bridgeTargetOrigin());
+  }
+
+  function requestExtensionSync() {
+    document.getElementById("syncBtn").textContent = "Syncing";
+    window.postMessage({ type: "EPSTUDY_EXTENSION_REQUEST_SYNC", config: {} }, bridgeTargetOrigin());
+    window.setTimeout(() => { document.getElementById("syncBtn").textContent = "Sync"; }, 1200);
+  }
+
+  function upsertCanvasCourses(courses) {
+    let changed = false;
+    for (const course of Array.isArray(courses) ? courses : []) {
+      const rawId = String(course?.id || course?.course_id || "").trim();
+      const name = String(course?.name || course?.course_code || "").replace(/\s+/g, " ").trim();
+      const code = String(course?.course_code || course?.code || "").replace(/\s+/g, " ").trim();
+      if (!rawId || !name || /\b(assignments?|files?)\b/i.test(`${name} ${code}`)) continue;
+      const id = `canvas-course-${rawId}`;
+      const existing = state.courses.find(row => row.id === id);
+      if (existing) {
+        existing.name = name;
+        existing.code = code;
+        changed = true;
+      } else {
+        state.courses.push({ id, name, code, color: colorFromString(`${name}-${rawId}`), source: "canvas" });
+        changed = true;
+      }
+    }
+    if (changed) state.courses = normalizeCourses(state.courses);
+  }
+
+  function normalizeIncomingTask(raw, source) {
+    const taskSource = String(raw?.source || source || "extension").toLowerCase();
+    const rawCourse = String(raw?.courseId || raw?.course_id || raw?.context_code?.replace?.(/^course_/, "") || "").trim();
+    let courseId = rawCourse;
+    if (taskSource === "canvas" && /^\d+$/.test(rawCourse)) courseId = `canvas-course-${rawCourse}`;
+    if (!state.courses.some(course => course.id === courseId)) return null;
+    const dueDate = parseDate(raw?.dueDate || raw?.due_at || raw?.start_at || raw?.startDate || raw?.date);
+    if (!dueDate) return null;
+    const title = String(raw?.title || raw?.name || "Task").replace(/^Assignment\b:?\s*/i, "").replace(/\s+/g, " ").trim();
+    if (!title) return null;
+    const externalKey = String(raw?.externalKey || `${taskSource}:${raw?.id || title}:${dueDate.toISOString()}`);
+    return {
+      id: String(raw?.id || externalKey).replace(/[^a-z0-9:_-]/gi, "-"),
+      title,
+      dueDate: dueDate.toISOString(),
+      estimatedMinutes: Math.max(1, Math.min(360, Number(raw?.estimatedMinutes || raw?.minutes || 30))),
+      source: taskSource,
+      courseId,
+      completed: Boolean(raw?.completed),
+      externalKey,
+      canvasUrl: raw?.canvasUrl || raw?.html_url || raw?.url || "",
+      eventUrl: raw?.eventUrl || ""
+    };
+  }
+
+  function upsertTasks(tasks, source) {
+    const incoming = (Array.isArray(tasks) ? tasks : []).map(task => normalizeIncomingTask(task, source)).filter(Boolean);
+    const byKey = new Map(state.tasks.map((task, index) => [task.externalKey || `${task.source}:${task.id}`, index]));
+    for (const task of incoming) {
+      const key = task.externalKey || `${task.source}:${task.id}`;
+      const index = byKey.get(key);
+      if (Number.isInteger(index)) state.tasks[index] = { ...state.tasks[index], ...task };
+      else state.tasks.push(task);
+    }
+    state.tasks = normalizeTasks(state.tasks, state.courses);
+  }
+
+  function handleExtensionPayload(payload) {
+    if (!payload || typeof payload !== "object") return;
+    upsertCanvasCourses(payload.courses || payload.canvasCourses || []);
+    upsertTasks(payload.canvas || [], "canvas");
+    upsertTasks(payload.teamsnap || [], "teamsnap");
+    upsertTasks(payload.membean || [], "membean");
+    saveState();
+    render();
+  }
+
+  function registerEvents() {
+    document.getElementById("epstudyVersionSelect").value = EPSTUDY_APP_VERSION;
+    document.getElementById("epstudyVersionSelect").addEventListener("change", event => switchVersion(event.target.value));
+    document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => setPage(tab.dataset.page)));
+    document.getElementById("syncBtn").addEventListener("click", requestExtensionSync);
+    document.getElementById("taskFilter").addEventListener("change", event => { taskFilter = event.target.value; renderTasks(); });
+    document.getElementById("taskDate").value = isoDate(new Date());
+    document.getElementById("taskForm").addEventListener("submit", event => {
+      event.preventDefault();
+      const title = document.getElementById("taskTitle").value.trim();
+      const courseId = document.getElementById("taskCourse").value;
+      const date = document.getElementById("taskDate").value;
+      const minutes = Number(document.getElementById("taskMinutes").value || 25);
+      if (!title || !courseId || !date) return;
+      state.tasks.push({
+        id: `manual-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        title,
+        courseId,
+        dueDate: new Date(`${date}T23:59:00`).toISOString(),
+        estimatedMinutes: Math.max(1, Math.min(360, minutes)),
+        source: "manual",
+        completed: false,
+        externalKey: ""
+      });
+      event.target.reset();
+      document.getElementById("taskDate").value = isoDate(new Date());
+      document.getElementById("taskMinutes").value = "25";
+      saveState();
+      render();
+    });
+    document.body.addEventListener("click", event => {
+      const actionNode = event.target.closest("[data-action]");
+      const dayNode = event.target.closest("[data-date]");
+      if (dayNode) {
+        selectedDate = new Date(`${dayNode.dataset.date}T12:00:00`);
+        renderCalendar();
+        return;
+      }
+      if (!actionNode) return;
+      if (actionNode.dataset.action === "toggle") return;
+      const task = state.tasks.find(row => row.id === actionNode.dataset.id);
+      if (!task) return;
+      const action = actionNode.dataset.action;
+      if (action === "delete") state.tasks = state.tasks.filter(row => row.id !== task.id);
+      if (action === "timer") {
+        state.selectedTaskId = task.id;
+        setTimerMinutes(task.estimatedMinutes || state.timerMinutes || 25);
+        setPage("timer");
+      }
+      if (action === "open") {
+        const url = task.canvasUrl || task.eventUrl;
+        if (url) window.open(url, "_blank", "noopener,noreferrer");
+      }
+      saveState();
+      render();
+    });
+    document.body.addEventListener("change", event => {
+      const checkbox = event.target.closest("[data-action='toggle']");
+      if (!checkbox) return;
+      const task = state.tasks.find(row => row.id === checkbox.dataset.id);
+      if (!task) return;
+      task.completed = checkbox.checked;
+      saveState();
+      render();
+    });
+    document.getElementById("prevMonth").addEventListener("click", () => { selectedDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1); renderCalendar(); });
+    document.getElementById("nextMonth").addEventListener("click", () => { selectedDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1); renderCalendar(); });
+    document.getElementById("timerMinutes").addEventListener("change", event => setTimerMinutes(event.target.value));
+    document.getElementById("timerTask").addEventListener("change", event => { state.selectedTaskId = event.target.value; saveState(); });
+    document.getElementById("timerStart").addEventListener("click", toggleTimer);
+    document.getElementById("timerReset").addEventListener("click", resetTimer);
+    document.getElementById("timerDone").addEventListener("click", completeTimer);
+    window.addEventListener("message", event => {
+      if (event.source !== window || !event.data) return;
+      if (event.data.type === "EPSTUDY_EXTENSION_SYNC") handleExtensionPayload(event.data.payload || {});
+      if (event.data.type === "EPSTUDY_EXTENSION_STATUS") document.getElementById("timerStatus").textContent = event.data.message || "";
+    });
+  }
+
+  publishVersion("init");
+  registerEvents();
+  setPage(currentPage);
+  render();
+  publishWebsiteTasks();
+</script>
+</body>
+</html>

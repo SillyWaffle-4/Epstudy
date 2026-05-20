@@ -620,7 +620,7 @@
       </div>
     </div>
     <div class="actions">
-      <label class="version-switcher" for="epstudyVersionSelect"><span>Version</span><select id="epstudyVersionSelect" aria-label="Switch EPStudy version" onchange="switchEpstudyVersion(this.value)"><option value="v2">V2</option><option value="v3">V3</option></select></label>
+      <label class="version-switcher" for="epstudyVersionSelect"><span>Version</span><select id="epstudyVersionSelect" aria-label="Switch EPStudy version" onchange="switchEpstudyVersion(this.value)"><option value="v2">V2</option><option value="v3">V3</option><option value="simple">Simple</option></select></label>
       <button id="quickSyncBtn" class="button primary" type="button">Sync</button>
       <button id="clearDoneBtn" class="button" type="button">Clear Done</button>
       <button id="tutorialBtn" class="button primary" type="button">Guide</button>
@@ -1682,21 +1682,19 @@
   }
 
   function epstudyVersionHref(version) {
-    const target = version === "v2" ? "v2" : "v3";
+    const target = ["v2", "v3", "simple"].includes(version) ? version : "v3";
     const suffix = `${window.location.search || ""}${window.location.hash || ""}`;
-    if (/\/versions\/v[23]\/(?:index\.html)?$/i.test(window.location.pathname)) return `../${target}/index.html${suffix}`;
+    if (/\/versions\/(?:v[23]|simple)\/(?:index\.html)?$/i.test(window.location.pathname)) return `../${target}/index.html${suffix}`;
     return `versions/${target}/index.html${suffix}`;
   }
 
   function publishEpstudyVersionSelection(source = "app") {
-    if (source !== "init") {
-      try { localStorage.setItem(VERSION_STORAGE_KEY, EPSTUDY_APP_VERSION); } catch {}
-    }
+    try { localStorage.setItem(VERSION_STORAGE_KEY, EPSTUDY_APP_VERSION); } catch {}
     window.postMessage({ type: "EPSTUDY_VERSION_SELECTED", version: EPSTUDY_APP_VERSION, source }, bridgeTargetOrigin());
   }
 
   function switchEpstudyVersion(nextVersion) {
-    const next = nextVersion === "v2" ? "v2" : "v3";
+    const next = ["v2", "v3", "simple"].includes(nextVersion) ? nextVersion : "v3";
     if (next === EPSTUDY_APP_VERSION) return;
     saveState();
     try { localStorage.setItem(VERSION_STORAGE_KEY, next); } catch {}

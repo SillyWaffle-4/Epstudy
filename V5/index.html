@@ -170,7 +170,7 @@
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script>
   const VERSION_STORAGE_KEY = "epstudy_v5_selected_version";
-  const VERSION_PATHS = { v2: "versions/v2/index.html", v3: "versions/v3/index.html" };
+  const VERSION_PATHS = { v2: "versions/v2/index.html", v3: "versions/v3/index.html", simple: "versions/simple/index.html" };
   const VERSION_OPTIONS = [
     {
       id: "v2",
@@ -181,11 +181,17 @@
       id: "v3",
       label: "V3",
       description: "Newer V3 dashboard, richer task controls, source health, and extension tools."
+    },
+    {
+      id: "simple",
+      label: "Simple",
+      description: "A quiet workspace with only tasks, calendar, and focus timer."
     }
   ];
 
   function getStoredVersion() {
-    return localStorage.getItem(VERSION_STORAGE_KEY) === "v2" ? "v2" : "v3";
+    const stored = localStorage.getItem(VERSION_STORAGE_KEY);
+    return Object.prototype.hasOwnProperty.call(VERSION_PATHS, stored) ? stored : "v3";
   }
 
   function VersionCard({ option, selectedVersion, onSelect }) {
@@ -255,7 +261,7 @@
       React.createElement(
         "p",
         { className: "note" },
-        "V2 and V3 in this V5 bundle share EPStudy's browser storage, so your tasks and settings stay available when you switch."
+        "V2, V3, and Simple in this V5 bundle share EPStudy's browser storage, so your tasks and settings stay available when you switch."
       )
     );
   }

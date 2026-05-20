@@ -134,7 +134,8 @@ async function fetchTextForWebsite(url) {
 }
 
 function normalizeWebsiteVersion(version) {
-  return String(version || "").toLowerCase() === "v2" ? "v2" : "v3";
+  const value = String(version || "").toLowerCase();
+  return ["v2", "v3", "simple"].includes(value) ? value : "v3";
 }
 
 async function resetEpstudyData() {
