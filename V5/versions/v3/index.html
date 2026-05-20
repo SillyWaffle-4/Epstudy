@@ -1546,6 +1546,7 @@
     const name = String(course?.name || "");
     const code = String(course?.code || course?.course_code || "");
     if (!id.startsWith("canvas-course-")) return false;
+    if (/^Canvas\s+\d+$/i.test(name) && (!code || /^C\d+$/i.test(code))) return true;
     return hasBlockedCanvasCourseKeyword(`${name} ${code}`) || isCanvasNavigationCourseName(name) || name.includes(":") || /^(hw|cw|qa|ma)\b\s*[-:]/i.test(name) || /\b\d+\s*pts?\b|\bdue\b/i.test(name) || /\/(assignments?|files|modules|pages|discussion_topics|quizzes)\//i.test(name) || /\b(chapter\s*\d+|quiz|project|poem|worksheet|homework|classwork)\b/i.test(name);
   }
 
@@ -3742,14 +3743,15 @@
 
   function ensureCanvasCourse(canvasCourse, courseIdRaw) {
     const cid = String(courseIdRaw || canvasCourse?.id || "unknown");
-    const canvasName = String(canvasCourse?.name || canvasCourse?.course_code || `Canvas ${cid}`).trim();
+    const canvasName = String(canvasCourse?.name || canvasCourse?.course_code || "").trim();
     const canvasCode = String(canvasCourse?.course_code || "").trim();
+    if (!canvasName) return "";
     if (hasBlockedCanvasCourseKeyword(`${canvasName} ${canvasCode}`) || isCanvasNavigationCourseName(canvasName)) return "";
 
     const existing = state.courses.find((c) => c.id === `canvas-course-${cid}` || (canvasCode && String(c.code||"").toLowerCase() === canvasCode.toLowerCase()) || String(c.name||"").toLowerCase() === canvasName.toLowerCase());
     if (existing) return existing.id;
 
-    const newCourse = { id: `canvas-course-${cid}`, name: canvasName, code: canvasCode || `C${cid}`, color: colorFromString(`${canvasName}-${cid}`) };
+    const newCourse = { id: `canvas-course-${cid}`, name: canvasName, code: canvasCode, color: colorFromString(`${canvasName}-${cid}`), source: "canvas", userColor: false };
     state.courses.push(newCourse);
     return newCourse.id;
   }
@@ -3762,6 +3764,7 @@
       const name = String(course.name || course.course_code || "").trim();
       if (!cid && !name) continue;
       const code = String(course.course_code || course.code || "").trim();
+      if (!name) continue;
       if (hasBlockedCanvasCourseKeyword(`${name} ${code}`) || isCanvasNavigationCourseName(name)) continue;
       const id = cid ? `canvas-course-${cid}` : `canvas-course-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
       const existing = state.courses.find(c => c.id === id || (code && String(c.code || "").toLowerCase() === code.toLowerCase()) || String(c.name || "").toLowerCase() === name.toLowerCase());
@@ -3772,7 +3775,7 @@
         existing.userColor = Boolean(existing.userColor);
         updated++;
       } else {
-        state.courses.push({ id, name: name || `Canvas ${cid}`, code: code || `C${cid}`, color: colorFromString(`${name}-${cid}`), source: "canvas", userColor: false });
+        state.courses.push({ id, name, code, color: colorFromString(`${name}-${cid}`), source: "canvas", userColor: false });
         added++;
       }
     }
@@ -4114,9 +4117,6 @@
       let courseId = "";
       if (courseIdRaw && canvasCoursesById.has(courseIdRaw)) {
         courseId = ensureCanvasCourse(canvasCoursesById.get(courseIdRaw), courseIdRaw);
-      } else if (courseIdRaw && /^\d+$/.test(courseIdRaw)) {
-        // If courseIdRaw looks like a Canvas ID but we don't have it, still create a course for it
-        courseId = ensureCanvasCourse({ id: courseIdRaw, name: `Canvas ${courseIdRaw}`, course_code: `C${courseIdRaw}` }, courseIdRaw);
       }
       if (!hasRealCourseForCourses({ courseId }, state.courses)) continue;
       const estimatedMinutes = Math.max(10, Math.min(180, Number(item?.points_possible) ? Math.round(Number(item.points_possible) * 1.5) : 30));
