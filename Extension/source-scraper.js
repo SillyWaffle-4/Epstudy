@@ -24,7 +24,11 @@ if (SOURCE_HOST.endsWith("teamsnap.com") && isTeamSnapScheduleUrl(window.locatio
 }
 
 async function scrapeCurrentPage() {
-  if (SOURCE_HOST.endsWith("instructure.com")) return { source: "canvas", tasks: await scrapeCanvasTasks(), courses: await scrapeCanvasCourses() };
+  if (SOURCE_HOST.endsWith("instructure.com")) {
+    const tasks = await scrapeCanvasTasks();
+    const courses = await ensureCoursesForCanvasTasks(tasks, await scrapeCanvasCourses());
+    return { source: "canvas", tasks, courses };
+  }
   if (SOURCE_HOST.endsWith("teamsnap.com")) {
     const teamSnap = getTeamSnapPageMeta();
     if (!teamSnap.isSchedulePage) return { source: "teamsnap", tasks: [], teamSnap };
@@ -61,15 +65,8 @@ async function scrapeCanvasCourses() {
     const rows = await fetchCanvasApiPages(`${window.location.origin}/api/v1/courses?enrollment_state=active&per_page=500`);
     for (const row of rows) {
       if (!row?.id || row.access_restricted_by_date) continue;
-      const name = String(row.name || row.course_code || `Canvas ${row.id}`).toLowerCase();
-      const code = String(row.course_code || "").toLowerCase();
-      if (hasBlockedCanvasCourseKeyword(`${name} ${code}`)) continue;
-      courses.push({
-        id: String(row.id),
-        name: String(row.name || row.course_code || `Canvas ${row.id}`),
-        course_code: String(row.course_code || ""),
-        source: "canvas"
-      });
+      const normalized = normalizeCanvasCourseRecord(row);
+      if (normalized) courses.push(normalized);
     }
   } catch {
     // The visible page scrape below is still useful if Canvas API access is unavailable.
@@ -92,6 +89,21 @@ async function scrapeCanvasCourses() {
   return dedupeCourses([...courses, ...visibleCourses]);
 }
 
+function normalizeCanvasCourseRecord(course, idOverride = "") {
+  const id = String(idOverride || course?.id || course?.course_id || course?.assetString?.match?.(/course_(\d+)/)?.[1] || "").trim();
+  const rawName = course?.shortName || course?.originalName || course?.name || course?.longName || course?.courseCode || course?.course_code || "";
+  const rawCode = course?.courseCode || course?.course_code || course?.code || "";
+  if (hasBlockedCanvasCourseKeyword(`${rawName} ${rawCode}`)) return null;
+  const name = cleanCanvasCourseName(rawName);
+  if (!id || !name || name.length > 90 || isCanvasNavigationLabel(name)) return null;
+  return {
+    id,
+    name,
+    course_code: cleanCanvasCourseName(rawCode),
+    source: "canvas"
+  };
+}
+
 function canvasCoursesFromEnv() {
   const env = window.ENV || {};
   const rows = [
@@ -99,20 +111,7 @@ function canvasCoursesFromEnv() {
     ...(Array.isArray(env.COURSES) ? env.COURSES : []),
     ...(Array.isArray(env.courses) ? env.courses : [])
   ];
-  return rows.map(course => {
-    const id = String(course?.id || course?.course_id || course?.assetString?.match?.(/course_(\d+)/)?.[1] || "").trim();
-    const rawName = course?.shortName || course?.originalName || course?.name || course?.longName || course?.courseCode || "";
-    const rawCode = course?.courseCode || course?.code || "";
-    if (hasBlockedCanvasCourseKeyword(`${rawName} ${rawCode}`)) return null;
-    const name = cleanCanvasCourseName(rawName);
-    if (!id || !name || name.length > 90 || isCanvasNavigationLabel(name)) return null;
-    return {
-      id,
-      name,
-      course_code: cleanCanvasCourseName(rawCode),
-      source: "canvas"
-    };
-  }).filter(Boolean);
+  return rows.map(course => normalizeCanvasCourseRecord(course)).filter(Boolean);
 }
 
 function cleanCanvasCourseName(value) {
@@ -143,6 +142,87 @@ function canvasCourseIdFromCourseHomeHref(href) {
   } catch {
     return raw.replace(/\/$/, "").match(/^\/courses\/(\d+)$/)?.[1] || "";
   }
+}
+
+async function ensureCoursesForCanvasTasks(tasks, courses) {
+  const resolvedCourses = [...(Array.isArray(courses) ? courses : [])];
+  const knownCourseIds = new Set(resolvedCourses.map(course => String(course?.id || "")));
+  const missingCourseIds = Array.from(new Set((Array.isArray(tasks) ? tasks : [])
+    .map(task => String(task?.courseId || "").replace(/^canvas-course-/, "").trim())
+    .filter(courseId => /^\d+$/.test(courseId) && !knownCourseIds.has(courseId))))
+    .slice(0, 50);
+
+  for (const courseId of missingCourseIds) {
+    const task = tasks.find(row => String(row?.courseId || "") === `canvas-course-${courseId}`);
+    const course = await fetchCanvasCourseForTask(courseId, task);
+    if (!course) continue;
+    resolvedCourses.push(course);
+    knownCourseIds.add(course.id);
+  }
+
+  return dedupeCourses(resolvedCourses);
+}
+
+async function fetchCanvasCourseForTask(courseIdRaw, task) {
+  return await fetchCanvasCourseFromApi(courseIdRaw) || await fetchCanvasCourseFromAssignmentPage(courseIdRaw, task);
+}
+
+async function fetchCanvasCourseFromApi(courseIdRaw) {
+  if (!/^\d+$/.test(String(courseIdRaw || ""))) return null;
+  try {
+    const response = await fetch(`${window.location.origin}/api/v1/courses/${courseIdRaw}`, {
+      credentials: "include",
+      headers: { Accept: "application/json+canvas-string-ids, application/json" }
+    });
+    if (!response.ok) return null;
+    const course = await response.json();
+    return normalizeCanvasCourseRecord(course, courseIdRaw);
+  } catch {
+    return null;
+  }
+}
+
+async function fetchCanvasCourseFromAssignmentPage(courseIdRaw, task) {
+  const assignmentId = canvasAssignmentId(task || {});
+  if (!/^\d+$/.test(String(courseIdRaw || "")) || !/^\d+$/.test(String(assignmentId || ""))) return null;
+  const url = absoluteCanvasUrl(task?.canvasUrl || `/courses/${courseIdRaw}/assignments/${assignmentId}`);
+  if (!url) return null;
+  try {
+    const response = await fetch(url, { credentials: "include" });
+    if (!response.ok) return null;
+    const html = await response.text();
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const courseLink = Array.from(doc.querySelectorAll(`a[href*="/courses/${courseIdRaw}"]`))
+      .find(link => {
+        try {
+          return new URL(link.getAttribute("href") || "", window.location.origin).pathname.replace(/\/$/, "") === `/courses/${courseIdRaw}`;
+        } catch {
+          return false;
+        }
+      });
+    const name = cleanCanvasCourseName(text(courseLink));
+    return normalizeCanvasCourseRecord({ id: courseIdRaw, name }, courseIdRaw);
+  } catch {
+    return null;
+  }
+}
+
+function absoluteCanvasUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const parsed = new URL(raw, window.location.origin);
+    if (parsed.hostname.endsWith("instructure.com")) {
+      parsed.protocol = "https:";
+      return parsed.toString();
+    }
+    if (/\/courses\/\d+\/assignments\/\d+/i.test(parsed.pathname)) {
+      return `${window.location.origin}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+  } catch {
+    // Ignore malformed links from Canvas markup.
+  }
+  return "";
 }
 
 function text(node) {
