@@ -274,8 +274,8 @@
   function isBadCanvasCourse(id, name, code) {
     if (!String(id).startsWith("canvas-course-")) return false;
     if (/^Canvas\s+\d+$/i.test(name) && (!code || /^C\d+$/i.test(code))) return true;
-    return /\b(assignments?|files?)\b/i.test(`${name} ${code}`)
-      || /^(announcements?|assignments?|files?|dashboard|courses?|recent feedback|show all)$/i.test(name);
+    return /\b(assignments?|files?|course analytics|view course stream)\b/i.test(`${name} ${code}`)
+      || /^(announcements?|assignments?|files?|course analytics|dashboard|courses?|recent feedback|show all|view course stream)$/i.test(name);
   }
 
   function normalizeTasks(tasks, courses) {
@@ -522,8 +522,8 @@
       const rawId = String(course?.id || course?.course_id || "").trim();
       const name = String(course?.name || course?.course_code || "").replace(/\s+/g, " ").trim();
       const code = String(course?.course_code || course?.code || "").replace(/\s+/g, " ").trim();
-      if (!rawId || !name || /\b(assignments?|files?)\b/i.test(`${name} ${code}`)) continue;
       const id = `canvas-course-${rawId}`;
+      if (!rawId || !name || isBadCanvasCourse(id, name, code)) continue;
       const existing = state.courses.find(row => row.id === id);
       if (existing) {
         existing.name = name;

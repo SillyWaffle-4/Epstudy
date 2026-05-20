@@ -124,11 +124,11 @@ function cleanCanvasCourseName(value) {
 }
 
 function hasBlockedCanvasCourseKeyword(value) {
-  return /\b(assignments?|files?)\b/i.test(String(value || ""));
+  return /\b(assignments?|files?|course analytics|view course stream)\b/i.test(String(value || ""));
 }
 
 function isCanvasNavigationLabel(label) {
-  return /^(announcements?|assignments?|assignment groups?|calendar|chat|collaborations?|conferences?|course details?|dashboard|discussions?|files?|grades?|help|history|home|inbox|modules?|outcomes?|pages?|people|quizzes?|rubrics?|settings|syllabus|to do|recent feedback|show all|courses?|all courses?)$/i.test(String(label || "").trim());
+  return /^(announcements?|assignments?|assignment groups?|calendar|chat|collaborations?|conferences?|course analytics|course details?|dashboard|discussions?|files?|grades?|help|history|home|inbox|modules?|outcomes?|pages?|people|quizzes?|rubrics?|settings|syllabus|to do|recent feedback|show all|view course stream|courses?|all courses?)$/i.test(String(label || "").trim());
 }
 
 function canvasCourseIdFromCourseHomeHref(href) {

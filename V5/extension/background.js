@@ -453,11 +453,11 @@ function isLikelyCanvasCourseName(name, code = "") {
 }
 
 function hasBlockedCanvasCourseKeyword(value) {
-  return /\b(assignments?|files?)\b/i.test(String(value || ""));
+  return /\b(assignments?|files?|course analytics|view course stream)\b/i.test(String(value || ""));
 }
 
 function isCanvasNavigationLabel(label) {
-  return /^(announcements?|assignments?|assignment groups?|calendar|chat|collaborations?|conferences?|course details?|discussions?|files?|grades?|home|modules?|outcomes?|pages?|people|quizzes?|rubrics?|settings|syllabus|to do|recent feedback|show all)$/i.test(String(label || "").trim());
+  return /^(announcements?|assignments?|assignment groups?|calendar|chat|collaborations?|conferences?|course analytics|course details?|discussions?|files?|grades?|home|modules?|outcomes?|pages?|people|quizzes?|rubrics?|settings|syllabus|to do|recent feedback|show all|view course stream)$/i.test(String(label || "").trim());
 }
 
 async function updateFocusShield(active, blockedSites) {

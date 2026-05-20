@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "EPStudy Sync",
   "description": "Syncs EPStudy V5 with Canvas, TeamSnap schedules, Membean, and the selected website version.",
-  "version": "1.4.0",
+  "version": "1.2.1",
   "icons": {
     "128": "icon128.png"
   },

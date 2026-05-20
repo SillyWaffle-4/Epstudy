@@ -1384,11 +1384,15 @@
     const code = String(course?.code || course?.course_code || "");
     if (!id.startsWith("canvas-course-")) return false;
     if (/^Canvas\s+\d+$/i.test(name) && (!code || /^C\d+$/i.test(code))) return true;
-    return isCanvasNavigationCourseName(name) || name.includes(":") || /^(hw|cw|qa|ma)\b\s*[-:]/i.test(name) || /\b\d+\s*pts?\b|\bdue\b/i.test(name) || /\/(assignments?|files|modules|pages|discussion_topics|quizzes)\//i.test(name) || /\b(chapter\s*\d+|quiz|project|poem|worksheet|homework|classwork)\b/i.test(name);
+    return hasBlockedCanvasCourseKeyword(`${name} ${code}`) || isCanvasNavigationCourseName(name) || name.includes(":") || /^(hw|cw|qa|ma)\b\s*[-:]/i.test(name) || /\b\d+\s*pts?\b|\bdue\b/i.test(name) || /\/(assignments?|files|modules|pages|discussion_topics|quizzes)\//i.test(name) || /\b(chapter\s*\d+|quiz|project|poem|worksheet|homework|classwork)\b/i.test(name);
   }
 
   function isCanvasNavigationCourseName(name) {
-    return /^(announcements?|assignments?|assignment groups?|calendar|chat|collaborations?|conferences?|course details?|dashboard|discussions?|files?|grades?|help|history|home|inbox|modules?|outcomes?|pages?|people|quizzes?|rubrics?|settings|syllabus|to do|recent feedback|show all|courses?|all courses?)$/i.test(String(name || "").trim());
+    return /^(announcements?|assignments?|assignment groups?|calendar|chat|collaborations?|conferences?|course analytics|course details?|dashboard|discussions?|files?|grades?|help|history|home|inbox|modules?|outcomes?|pages?|people|quizzes?|rubrics?|settings|syllabus|to do|recent feedback|show all|view course stream|courses?|all courses?)$/i.test(String(name || "").trim());
+  }
+
+  function hasBlockedCanvasCourseKeyword(value) {
+    return /\b(assignments?|files?|course analytics|view course stream)\b/i.test(String(value || ""));
   }
 
   function loadState() {
@@ -3047,6 +3051,7 @@
     const canvasName = String(canvasCourse?.name || canvasCourse?.course_code || "").trim();
     const canvasCode = String(canvasCourse?.course_code || "").trim();
     if (!canvasName) return "";
+    if (isBadCanvasCourseRecord({ id: `canvas-course-${cid}`, name: canvasName, code: canvasCode })) return "";
 
     const existing = state.courses.find((c) => c.id === `canvas-course-${cid}` || (canvasCode && String(c.code||"").toLowerCase() === canvasCode.toLowerCase()) || String(c.name||"").toLowerCase() === canvasName.toLowerCase());
     if (existing) return existing.id;
@@ -3065,6 +3070,7 @@
       if (!cid && !name) continue;
       const code = String(course.course_code || course.code || "").trim();
       if (!name) continue;
+      if (isBadCanvasCourseRecord({ id: `canvas-course-${cid || name}`, name, code })) continue;
       const id = cid ? `canvas-course-${cid}` : `canvas-course-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
       const existing = state.courses.find(c => c.id === id || (code && String(c.code || "").toLowerCase() === code.toLowerCase()) || String(c.name || "").toLowerCase() === name.toLowerCase());
       if (existing) {
