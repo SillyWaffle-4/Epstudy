@@ -797,11 +797,15 @@ async function showTeamSnapReminder(alarmName) {
 }
 
 function isEpstudyUrl(url) {
+  if (String(url || "").startsWith("file:")) return true;
   try {
     const parsed = new URL(url);
+    if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1" || parsed.hostname === "0.0.0.0") return true;
     return parsed.protocol === "https:"
-      && parsed.hostname === "sillywaffle-4.github.io"
-      && parsed.pathname.startsWith("/Epstudy/");
+      && ((parsed.hostname === "sillywaffle-4.github.io" && parsed.pathname.startsWith("/Epstudy/"))
+        || parsed.hostname.endsWith("github.io")
+        || parsed.hostname.endsWith("netlify.app")
+        || parsed.hostname.endsWith("vercel.app"));
   } catch {
     return false;
   }

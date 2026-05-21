@@ -13,7 +13,11 @@
     "https://*.membean.com/*",
     "https://membean.com/*",
     "https://www.eastsideprep.org/*",
-    "https://sillywaffle-4.github.io/Epstudy/*"
+    "https://sillywaffle-4.github.io/Epstudy/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "http://0.0.0.0/*",
+    "file:///*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -21,7 +25,11 @@
   "content_scripts": [
     {
       "matches": [
-        "https://sillywaffle-4.github.io/Epstudy/*"
+        "https://sillywaffle-4.github.io/Epstudy/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "http://0.0.0.0/*",
+        "file:///*"
       ],
       "js": ["website-bridge.js"],
       "run_at": "document_idle"
