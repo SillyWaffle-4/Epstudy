@@ -76,12 +76,12 @@ async function scrapeCanvasCourses() {
     ...canvasCoursesFromEnv(),
     ...Array.from(document.querySelectorAll("a[href*='/courses/']"))
     .map(node => {
-      const rawLabel = text(node);
+      const rawLabel = canvasCourseLabelFromLink(node);
       const id = canvasCourseIdFromCourseHomeHref(node.getAttribute?.("href") || "");
-      if (!id || hasBlockedCanvasCourseKeyword(rawLabel)) return null;
-      const label = cleanCanvasCourseName(rawLabel);
+      if (!id || hasBlockedCanvasCourseKeyword(rawLabel.name)) return null;
+      const label = cleanCanvasCourseName(rawLabel.name);
       if (!label || label.length > 90 || isCanvasNavigationLabel(label)) return null;
-      return { id, name: label, course_code: "", source: "canvas" };
+      return { id, name: label, course_code: cleanCanvasCourseName(rawLabel.code), source: "canvas" };
     })
     .filter(Boolean)
   ];
@@ -112,6 +112,25 @@ function canvasCoursesFromEnv() {
     ...(Array.isArray(env.courses) ? env.courses : [])
   ];
   return rows.map(course => normalizeCanvasCourseRecord(course)).filter(Boolean);
+}
+
+function canvasCourseLabelFromLink(link) {
+  const card = link?.closest?.(".ic-DashboardCard, [class*='DashboardCard'], [data-testid='draggable-card']");
+  if (card) {
+    const title = text(card.querySelector?.([
+      ".ic-DashboardCard__header-title",
+      "[data-testid='dashboard-card-title']",
+      "[class*='DashboardCard__header-title']",
+      "h2",
+      "h3"
+    ].join(",")));
+    const code = text(card.querySelector?.(".ic-DashboardCard__header-subtitle, [class*='DashboardCard__header-subtitle']"));
+    if (title) return { name: title, code };
+  }
+  return {
+    name: text(link?.querySelector?.(".ellipsible, [data-testid='dashboard-card-title'], h2, h3")) || text(link),
+    code: ""
+  };
 }
 
 function cleanCanvasCourseName(value) {
@@ -867,7 +886,7 @@ function dedupe(rows) {
 function dedupeCourses(rows) {
   const seen = new Set();
   return rows.filter((row) => {
-    const key = `${row.id || ""}:${row.name || ""}`.toLowerCase();
+    const key = String(row.id || "").toLowerCase();
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

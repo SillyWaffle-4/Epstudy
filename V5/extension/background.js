@@ -299,7 +299,7 @@ async function mergeSourcePayload(source, payload, sender = null) {
   }
   await chrome.storage.local.set(update);
   if (safeSource === "canvas" && payload?.canvasDashboardView === "card") {
-    runCanvasCardModeListRefresh(sender?.tab?.url || "", { restoreCardView: true }).catch(() => {});
+    runCanvasCardModeListRefresh(sender?.tab?.url || "", { restoreCardView: true, sourceTabId: sender?.tab?.id || null }).catch(() => {});
   }
   if (safeSource === "teamsnap") {
     await chrome.storage.local.set({
@@ -429,7 +429,7 @@ function normalizeCanvasCourses(courses) {
       if (!rawId || !name) return null;
       if (!/^\d+$/.test(rawId)) return null;
       if (!isLikelyCanvasCourseName(name, code)) return null;
-      const key = `${rawId}:${name}`.toLowerCase();
+      const key = rawId.toLowerCase();
       if (seen.has(key)) return null;
       seen.add(key);
       return { id: rawId, name, course_code: code, source: "canvas" };
@@ -528,6 +528,10 @@ async function runCanvasCardModeListRefresh(sourceUrl, config = {}) {
     await broadcastToEpstudy(cache);
     if (config.restoreCardView) {
       await sendCanvasDashboardViewMessage(await chrome.tabs.get(createdTab.id), "card").catch(() => {});
+      if (config.sourceTabId && config.sourceTabId !== createdTab.id) {
+        const sourceTab = await chrome.tabs.get(config.sourceTabId).catch(() => null);
+        if (sourceTab) await sendCanvasDashboardViewMessage(sourceTab, "card").catch(() => {});
+      }
     }
   } catch {
     // The normal card-view scrape remains available; retry after the cooldown window.
@@ -655,11 +659,11 @@ async function askTabToScrape(tab, config) {
   }
   try {
     const response = await chrome.tabs.sendMessage(tab.id, { type: "EPSTUDY_SCRAPE_NOW", config });
-    if (response?.payload?.source) await mergeSourcePayload(response.payload.source, response.payload);
+    if (response?.payload?.source) await mergeSourcePayload(response.payload.source, response.payload, { tab });
   } catch {
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["source-scraper.js"] });
     const response = await chrome.tabs.sendMessage(tab.id, { type: "EPSTUDY_SCRAPE_NOW", config });
-    if (response?.payload?.source) await mergeSourcePayload(response.payload.source, response.payload);
+    if (response?.payload?.source) await mergeSourcePayload(response.payload.source, response.payload, { tab });
   }
 }
 

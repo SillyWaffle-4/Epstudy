@@ -177,12 +177,12 @@ async function scrapeCanvasCourses() {
     ...scrapeCanvasDashboardCardCourses(),
     ...Array.from(document.querySelectorAll("a[href*='/courses/']"))
     .map(node => {
-      const rawLabel = text(node);
-      if (hasBlockedCanvasCourseKeyword(rawLabel)) return null;
-      const label = cleanCanvasCourseName(rawLabel);
+      const courseLabel = canvasCourseLabelFromLink(node);
+      if (hasBlockedCanvasCourseKeyword(`${courseLabel.name} ${courseLabel.code}`)) return null;
+      const label = cleanCanvasCourseName(courseLabel.name);
       const courseId = canvasCourseIdFromCourseHomeHref(node.getAttribute?.("href") || "");
       if (!courseId || !isLikelyCanvasCourseName(label)) return null;
-      return { id: courseId, name: label, course_code: "", source: "canvas" };
+      return { id: courseId, name: label, course_code: cleanCanvasCourseName(courseLabel.code), source: "canvas" };
     })
     .filter(Boolean)
   ];
@@ -213,6 +213,25 @@ function canvasCoursesFromEnv() {
     ...(Array.isArray(env.courses) ? env.courses : [])
   ];
   return rows.map(course => normalizeCanvasCourseRecord(course)).filter(Boolean);
+}
+
+function canvasCourseLabelFromLink(link) {
+  const card = link?.closest?.(".ic-DashboardCard, [class*='DashboardCard'], [data-testid='draggable-card']");
+  if (card) {
+    const title = text(card.querySelector?.([
+      ".ic-DashboardCard__header-title",
+      "[data-testid='dashboard-card-title']",
+      "[class*='DashboardCard__header-title']",
+      "h2",
+      "h3"
+    ].join(",")));
+    const code = text(card.querySelector?.(".ic-DashboardCard__header-subtitle, [class*='DashboardCard__header-subtitle']"));
+    if (title) return { name: title, code };
+  }
+  return {
+    name: text(link?.querySelector?.(".ellipsible, [data-testid='dashboard-card-title'], h2, h3")) || text(link),
+    code: ""
+  };
 }
 
 function dashboardCoursesFromApiCards(cards) {
@@ -295,26 +314,17 @@ function scrapeCanvasDashboardCardCourses() {
       .find(link => canvasCourseIdFromCourseHomeHref(link.getAttribute?.("href") || ""));
     const href = courseLink?.getAttribute?.("href") || "";
     const id = canvasCourseIdFromCourseHomeHref(href) || card.getAttribute?.("data-course-id") || "";
-    const titleNode = card.querySelector?.([
-      ".ic-DashboardCard__header-title",
-      "[class*='DashboardCard__header-title']",
-      "[class*='DashboardCardHeader'] h3",
-      "[class*='dashboard-card'] h3",
-      "h2",
-      "h3",
-      "a[href*='/courses/']"
-    ].join(","));
-    const subtitleNode = card.querySelector?.(".ic-DashboardCard__header-subtitle, [class*='DashboardCard__header-subtitle']");
     const fallbackLine = text(card).split(/\s{2,}|(?=Announcements|Assignments|Discussions|Files)/i)[0];
     const ariaLabel = card.getAttribute?.("aria-label") || courseLink?.getAttribute?.("aria-label") || courseLink?.getAttribute?.("title") || "";
-    const rawName = text(titleNode) || ariaLabel.replace(/^course:?\s*/i, "") || fallbackLine;
+    const cardLabel = canvasCourseLabelFromLink(courseLink);
+    const rawName = cardLabel.name || ariaLabel.replace(/^course:?\s*/i, "") || fallbackLine;
     if (hasBlockedCanvasCourseKeyword(rawName)) return null;
     const name = cleanCanvasCourseName(rawName);
     if (!id || !isLikelyCanvasCourseName(name)) return null;
     return {
       id,
       name,
-      course_code: cleanCanvasCourseName(text(subtitleNode)),
+      course_code: cleanCanvasCourseName(cardLabel.code),
       source: "canvas"
     };
   }).filter(Boolean);
@@ -1058,7 +1068,7 @@ function dedupe(rows) {
 function dedupeCourses(rows) {
   const seen = new Set();
   return rows.filter((row) => {
-    const key = `${row.id || ""}:${row.name || ""}`.toLowerCase();
+    const key = String(row.id || "").toLowerCase();
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
