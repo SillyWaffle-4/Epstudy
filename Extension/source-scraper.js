@@ -471,17 +471,17 @@ async function extractDashboardCardTasks(cards) {
 
 async function scrapeCanvasApiTasks() {
   const rows = [];
-  const todoRows = await fetchCanvasApiPages(`${window.location.origin}/api/v1/users/self/todo?per_page=100`);
-  const plannerRows = await fetchCanvasApiPages(`${window.location.origin}/api/v1/planner/items?per_page=100`);
+  const todoRows = await fetchCanvasApiPages(`${window.location.origin}/api/v1/users/self/todo?per_page=200`);
+  const plannerRows = await fetchCanvasApiPages(`${window.location.origin}/api/v1/planner/items?per_page=200`);
   for (const item of [...todoRows, ...plannerRows]) {
     const normalized = await normalizeCanvasApiTask(item);
     if (normalized) rows.push(normalized);
   }
 
-  const cards = await fetchCanvasApiPages(`${window.location.origin}/api/v1/dashboard/dashboard_cards?per_page=100`);
+  const cards = await fetchCanvasApiPages(`${window.location.origin}/api/v1/dashboard/dashboard_cards?per_page=200`);
   rows.push(...(await extractDashboardCardTasks(cards)));
 
-  const courses = await fetchCanvasApiPages(`${window.location.origin}/api/v1/courses?enrollment_state=active&per_page=100`);
+  const courses = await fetchCanvasApiPages(`${window.location.origin}/api/v1/courses?enrollment_state=active&per_page=200`);
   for (const course of courses.slice(0, 30)) {
     if (!course?.id || course.access_restricted_by_date) continue;
     const assignments = await fetchCanvasApiPages(`${window.location.origin}/api/v1/courses/${course.id}/assignments?bucket=upcoming&per_page=100`);

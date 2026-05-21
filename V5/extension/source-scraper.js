@@ -166,7 +166,7 @@ async function scrapeCanvasCourses() {
       const normalized = normalizeCanvasCourseRecord(row);
       if (normalized) courses.push(normalized);
     }
-    const cards = await fetchCanvasApiPages(`${window.location.origin}/api/v1/dashboard/dashboard_cards?per_page=100`);
+    const cards = await fetchCanvasApiPages(`${window.location.origin}/api/v1/dashboard/dashboard_cards?per_page=300`);
     courses.push(...dashboardCoursesFromApiCards(cards));
   } catch {
     // The visible page scrape below is still useful if Canvas API access is unavailable.
@@ -658,20 +658,20 @@ async function extractDashboardCardTasks(cards) {
 
 async function scrapeCanvasApiTasks() {
   const rows = [];
-  const todoRows = await fetchCanvasApiPages(`${window.location.origin}/api/v1/users/self/todo?per_page=100`);
-  const plannerRows = await fetchCanvasApiPages(`${window.location.origin}/api/v1/planner/items?per_page=100`);
+  const todoRows = await fetchCanvasApiPages(`${window.location.origin}/api/v1/users/self/todo?per_page=300`);
+  const plannerRows = await fetchCanvasApiPages(`${window.location.origin}/api/v1/planner/items?per_page=300`);
   for (const item of [...todoRows, ...plannerRows]) {
     const normalized = await normalizeCanvasApiTask(item);
     if (normalized) rows.push(normalized);
   }
 
-  const cards = await fetchCanvasApiPages(`${window.location.origin}/api/v1/dashboard/dashboard_cards?per_page=100`);
+  const cards = await fetchCanvasApiPages(`${window.location.origin}/api/v1/dashboard/dashboard_cards?per_page=300`);
   rows.push(...(await extractDashboardCardTasks(cards)));
 
-  const courses = await fetchCanvasApiPages(`${window.location.origin}/api/v1/courses?enrollment_state=active&per_page=100`);
+  const courses = await fetchCanvasApiPages(`${window.location.origin}/api/v1/courses?enrollment_state=active&per_page=300`);
   for (const course of courses.slice(0, 30)) {
     if (!course?.id || course.access_restricted_by_date) continue;
-    const assignments = await fetchCanvasApiPages(`${window.location.origin}/api/v1/courses/${course.id}/assignments?bucket=upcoming&per_page=100`);
+    const assignments = await fetchCanvasApiPages(`${window.location.origin}/api/v1/courses/${course.id}/assignments?bucket=upcoming&per_page=300`);
     for (const assignment of assignments) {
       const normalized = await normalizeCanvasAssignment(assignment, String(course.id));
       if (normalized) rows.push(normalized);

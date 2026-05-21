@@ -1281,6 +1281,8 @@
     { id: "course-personal", name: "Personal", code: "PERS", color: "#8b5cf6" },
     { id: "course-sports", name: "Team Event", code: "TEAM", color: "#10b981" }
   ];
+  const UNFILTERED_COURSE_ID = "course-unfiltered";
+  const UNFILTERED_COURSE = { id: UNFILTERED_COURSE_ID, name: "Unfiltered", code: "", color: "#64748b", hidden: true };
 
   const DEFAULT_DASHBOARD_SECTIONS = {
     mission: true,
@@ -1452,12 +1454,14 @@
         name: c?.name ? String(c.name) : `Course ${i + 1}`,
         code: c?.code ? String(c.code) : "",
         color: /^#([0-9a-f]{3}|[0-9a-f]{6})$|^hsl\(|^rgb\(/i.test(c?.color || "") ? String(c.color) : "#2563eb",
-        userColor: Boolean(c?.userColor)
+        userColor: Boolean(c?.userColor),
+        hidden: Boolean(c?.hidden) || String(c?.id || "") === UNFILTERED_COURSE_ID
       })).filter(c => c.id !== "course-other" && String(c.name || "").toLowerCase() !== "other" && !isBadCanvasCourseRecord(c));
       for (const defaultCourse of DEFAULT_COURSES) {
         const exists = merged.courses.some(c => c.id === defaultCourse.id || String(c.name).toLowerCase() === defaultCourse.name.toLowerCase());
         if (!exists) merged.courses.push({ ...defaultCourse });
       }
+      if (!merged.courses.some(c => c.id === UNFILTERED_COURSE_ID)) merged.courses.push({ ...UNFILTERED_COURSE });
 
       merged.tasks = merged.tasks.map((t) => {
         const dueRaw = t?.dueDate ? new Date(t.dueDate) : null;
@@ -1469,7 +1473,10 @@
           courseId: t?.courseId ? String(t.courseId) : "",
           estimatedMinutes: Math.max(1, Number(t.estimatedMinutes) || 25),
           dueDate,
-          completed: Boolean(t?.completed)
+          completed: Boolean(t?.completed),
+          rawCanvasCourseId: t?.rawCanvasCourseId ? String(t.rawCanvasCourseId) : "",
+          courseName: t?.courseName ? String(t.courseName) : "",
+          courseCode: t?.courseCode ? String(t.courseCode) : ""
         };
       }).filter(task => hasRealCourseForCourses(task, merged.courses));
       for (let day = 0; day <= 6; day += 1) {
@@ -1958,6 +1965,7 @@
   function hasRealCourseForCourses(task, courses) {
     const courseId = String(task?.courseId || "").trim();
     if (!courseId || courseId === "course-other") return false;
+    if (courseId === UNFILTERED_COURSE_ID) return true;
     return (courses || []).some(course => (
       course.id === courseId &&
       course.id !== "course-other" &&
@@ -1967,6 +1975,10 @@
 
   function hasRealCourse(task) {
     return hasRealCourseForCourses(task, state.courses);
+  }
+
+  function visibleCourses(courses = state.courses) {
+    return (courses || []).filter(course => !course.hidden && course.id !== UNFILTERED_COURSE_ID);
   }
 
   function removeTasksWithoutRealCourse(shouldSave = false) {
@@ -3144,6 +3156,26 @@
     return sports.id;
   }
 
+  function resolveUnfilteredCanvasTasks() {
+    let changed = false;
+    for (const task of state.tasks) {
+      if (task.courseId !== UNFILTERED_COURSE_ID || String(task.source || "").toLowerCase() !== "canvas") continue;
+      const rawId = String(task.rawCanvasCourseId || task.courseIdRaw || task.course_id || "").replace(/^canvas-course-/, "").trim();
+      const directId = rawId ? `canvas-course-${rawId}` : "";
+      const matched = state.courses.find(course => (
+        !course.hidden &&
+        ((directId && course.id === directId) ||
+          (task.courseName && String(course.name || "").toLowerCase() === String(task.courseName).toLowerCase()) ||
+          (task.courseCode && String(course.code || "").toLowerCase() === String(task.courseCode).toLowerCase()))
+      ));
+      if (matched) {
+        task.courseId = matched.id;
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
   function normalizeIncomingTask(raw, source) {
     if (!raw || typeof raw !== "object") return null;
     const taskSource = String(raw.source || source || "extension").toLowerCase();
@@ -3161,6 +3193,7 @@
       const courseName = String(raw.courseName || raw.context_name || raw.course_name || "").trim();
       const createdCourseId = ensureCanvasCourse({ id: rawId, name: courseName, course_code: raw.courseCode || raw.course_code || "" }, rawId);
       if (createdCourseId) courseId = createdCourseId;
+      else courseId = UNFILTERED_COURSE_ID;
     }
     if (!hasRealCourseForCourses({ courseId }, state.courses)) return null;
     const dueRaw = raw.dueDate || raw.due_at || raw.start_at || raw.startDate || raw.date;
@@ -3176,6 +3209,9 @@
       dueDate: dueDate.toISOString(),
       source: taskSource,
       courseId,
+      rawCanvasCourseId: taskSource === "canvas" ? String(raw.courseId || raw.course_id || raw.context_code?.replace?.(/^course_/, "") || "").replace(/^canvas-course-/, "").trim() : "",
+      courseName: taskSource === "canvas" ? String(raw.courseName || raw.context_name || raw.course_name || "").trim() : "",
+      courseCode: taskSource === "canvas" ? String(raw.courseCode || raw.course_code || "").trim() : "",
       completed: Boolean(raw.completed),
       externalKey,
       canvasUrl: raw.canvasUrl || raw.html_url || raw.url || "",
@@ -3265,6 +3301,7 @@
   function handleExtensionPayload(payload) {
     if (!payload || typeof payload !== "object") return;
     const courseResult = upsertCanvasCourses(payload.courses || payload.canvasCourses || []);
+    let resolvedUnfiltered = resolveUnfilteredCanvasTasks();
     const sourceCounts = {};
     const canvasStatus = payload.sourceStatus?.canvas || null;
     const teamSnapStatus = payload.sourceStatus?.teamsnap || null;
@@ -3274,6 +3311,7 @@
       if (source === "teamsnap" && !state.teamSnapEnabled) continue;
       if (!Array.isArray(payload[source])) continue;
       const result = upsertImportedTasks(payload[source], source);
+      if (source === "canvas") resolvedUnfiltered = resolveUnfilteredCanvasTasks() || resolvedUnfiltered;
       sourceCounts[source] = result.total;
       // Extract membean session count from progress data
       if (source === "membean" && Array.isArray(payload[source])) {
@@ -3289,7 +3327,7 @@
     const total = Object.values(sourceCounts).reduce((sum, count) => sum + count, 0);
     const status = document.getElementById("extensionSyncStatus");
     if (status) {
-      if (canvasStatus?.status === "waiting_for_readable_page" && !total && !courseResult.added && !courseResult.updated) {
+      if (canvasStatus?.status === "waiting_for_readable_page" && !total && !courseResult.added && !courseResult.updated && !resolvedUnfiltered) {
         const cachedTasks = Number(canvasStatus.cachedTasks || 0);
         const cachedCourses = Number(canvasStatus.cachedCourses || 0);
         status.textContent = cachedTasks || cachedCourses
@@ -3297,13 +3335,13 @@
           : "Canvas is not readable right now. EPStudy will import tasks and courses when Canvas is opened.";
       } else {
         const sourceSummary = [`Canvas ${sourceCounts.canvas || 0}`, `TeamSnap ${sourceCounts.teamsnap || 0}`, `Membean ${sourceCounts.membean || 0}`].join(", ");
-        status.textContent = total || courseResult.added || courseResult.updated
+        status.textContent = total || courseResult.added || courseResult.updated || resolvedUnfiltered
           ? `Extension synced ${total} task item(s) (${sourceSummary}) and ${courseResult.added + courseResult.updated} Canvas course update(s).`
           : "Extension responded, but no current tasks were found.";
         if (teamSnapStatus?.status === "waiting_for_schedule") status.textContent += " TeamSnap was found, but no readable schedule events were detected.";
       }
     }
-    if (courseResult.added || courseResult.updated) { saveState(); if (!total) renderAll(); }
+    if (courseResult.added || courseResult.updated || resolvedUnfiltered) { saveState(); if (!total || resolvedUnfiltered) renderAll(); }
   }
 
   async function fetchCanvasPages(initialUrl, token, useProxy) {
@@ -3345,10 +3383,10 @@
       if (courseIdRaw && canvasCoursesById.has(courseIdRaw)) {
         courseId = ensureCanvasCourse(canvasCoursesById.get(courseIdRaw), courseIdRaw);
       }
-      if (!hasRealCourseForCourses({ courseId }, state.courses)) continue;
+      if (!hasRealCourseForCourses({ courseId }, state.courses)) courseId = UNFILTERED_COURSE_ID;
       const estimatedMinutes = Math.max(10, Math.min(180, Number(item?.points_possible) ? Math.round(Number(item.points_possible) * 1.5) : 30));
 
-      imported.push({ id: `canvas-${courseIdRaw}-${item.id}`, title, estimatedMinutes, dueDate: dueDate.toISOString(), source: "canvas", courseId, completed: false, externalKey: item.externalKey || `canvas:${courseIdRaw}:${item.id}` });
+      imported.push({ id: `canvas-${courseIdRaw}-${item.id}`, title, estimatedMinutes, dueDate: dueDate.toISOString(), source: "canvas", courseId, rawCanvasCourseId: courseIdRaw, courseName: item?.context_name || item?.course_name || "", completed: false, externalKey: item.externalKey || `canvas:${courseIdRaw}:${item.id}` });
     }
 
     let added = 0, updated = 0;
@@ -3392,7 +3430,7 @@
       let payload = [];
       
       for (const c of validCourses) {
-        const assignUrl = `${cleanUrl}/api/v1/courses/${c.id}/assignments?per_page=100`;
+        const assignUrl = `${cleanUrl}/api/v1/courses/${c.id}/assignments?per_page=300`;
         const rows = await fetchCanvasPages(assignUrl, token, useProxy);
         payload = payload.concat(rows.map(r => ({ ...r, course_id: r.course_id !== null && r.course_id !== undefined ? r.course_id : c.id })));
       }
@@ -3622,13 +3660,14 @@
     syncGuideSetupControls();
     syncMusicSettings();
 
-    const coHtml = state.courses.map(c => `<option value="${c.id}">${escapeHtml(c.name)}${c.code?` (${escapeHtml(c.code)})`:""}</option>`).join("");
+    const coHtml = visibleCourses().map(c => `<option value="${c.id}">${escapeHtml(c.name)}${c.code?` (${escapeHtml(c.code)})`:""}</option>`).join("");
     const tc = document.getElementById("taskCourse"); if (tc) tc.innerHTML = coHtml;
     
     const clist = document.getElementById("courseList");
     if (clist) {
       clist.className = "course-list-grid";
-      clist.innerHTML = state.courses.length ? state.courses.map(c => `<div class="course-row"><span><input type="color" value="${c.color}" data-id="${c.id}" class="course-color-swatch" style="border:none;background:none;width:20px;height:20px;padding:0;cursor:pointer;vertical-align:middle;margin-right:10px;" /><span style="font-weight:600">${escapeHtml(c.name)}</span> ${c.code?`<span class="mini-text">(${escapeHtml(c.code)})</span>`:""}</span><button class="icon-button" data-action="delete-course" data-id="${c.id}">✕</button></div>`).join("") : "<p class='empty'>No courses added.</p>";
+      const shownCourses = visibleCourses();
+      clist.innerHTML = shownCourses.length ? shownCourses.map(c => `<div class="course-row"><span><input type="color" value="${c.color}" data-id="${c.id}" class="course-color-swatch" style="border:none;background:none;width:20px;height:20px;padding:0;cursor:pointer;vertical-align:middle;margin-right:10px;" /><span style="font-weight:600">${escapeHtml(c.name)}</span> ${c.code?`<span class="mini-text">(${escapeHtml(c.code)})</span>`:""}</span><button class="icon-button" data-action="delete-course" data-id="${c.id}">✕</button></div>`).join("") : "<p class='empty'>No courses added.</p>";
     }
     
 
@@ -3886,7 +3925,7 @@
     });
 
     document.getElementById("courseList")?.addEventListener("click", e => {
-      const btn = e.target.closest("button"); if(!btn || state.courses.length<=1) return;
+      const btn = e.target.closest("button"); if(!btn || visibleCourses().length<=1) return;
       state.courses = state.courses.filter(c => c.id !== btn.dataset.id);
       state.tasks = state.tasks.filter(t => t.courseId !== btn.dataset.id);
       removeTasksWithoutRealCourse(false);

@@ -192,6 +192,8 @@
     { id: "course-personal", name: "Personal", code: "PERS", color: "#8b5cf6" },
     { id: "course-sports", name: "Team Event", code: "TEAM", color: "#10b981" }
   ];
+  const UNFILTERED_COURSE_ID = "course-unfiltered";
+  const UNFILTERED_COURSE = { id: UNFILTERED_COURSE_ID, name: "Unfiltered", code: "", color: "#64748b", hidden: true };
   const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const state = loadState();
   let currentPage = new URLSearchParams(window.location.search).get("page") || "tasks";
@@ -262,12 +264,13 @@
         const key = id.toLowerCase();
         if (seen.has(key)) return null;
         seen.add(key);
-        return { id, name, code, color, source: course?.source || "" };
+        return { id, name, code, color, source: course?.source || "", hidden: Boolean(course?.hidden) || id === UNFILTERED_COURSE_ID };
       })
       .filter(Boolean);
     for (const course of DEFAULT_COURSES) {
       if (!rows.some(row => row.id === course.id)) rows.push({ ...course });
     }
+    if (!rows.some(row => row.id === UNFILTERED_COURSE_ID)) rows.push({ ...UNFILTERED_COURSE });
     return rows;
   }
 
@@ -283,7 +286,7 @@
     return (Array.isArray(tasks) ? tasks : [])
       .map(task => {
         const courseId = String(task?.courseId || "").trim();
-        if (!courses.some(course => course.id === courseId)) return null;
+        if (courseId !== UNFILTERED_COURSE_ID && !courses.some(course => course.id === courseId)) return null;
         const dueDate = parseDate(task?.dueDate || task?.due_at || task?.start_at || task?.date);
         if (!dueDate) return null;
         return {
@@ -295,6 +298,8 @@
           courseId,
           completed: Boolean(task?.completed),
           externalKey: String(task?.externalKey || ""),
+          rawCanvasCourseId: task?.rawCanvasCourseId ? String(task.rawCanvasCourseId) : "",
+          courseName: task?.courseName ? String(task.courseName) : "",
           canvasUrl: task?.canvasUrl || task?.html_url || task?.url || "",
           eventUrl: task?.eventUrl || ""
         };
@@ -320,6 +325,10 @@
 
   function courseById(id) {
     return state.courses.find(course => course.id === id) || null;
+  }
+
+  function visibleCourses(courses = state.courses) {
+    return (courses || []).filter(course => !course.hidden && course.id !== UNFILTERED_COURSE_ID);
   }
 
   function openTasks() {
@@ -360,7 +369,7 @@
     const courseSelect = document.getElementById("taskCourse");
     const taskSelect = document.getElementById("timerTask");
     if (courseSelect) {
-      courseSelect.innerHTML = state.courses.map(course => `<option value="${escapeHtml(course.id)}">${escapeHtml(course.name)}${course.code ? ` (${escapeHtml(course.code)})` : ""}</option>`).join("");
+      courseSelect.innerHTML = visibleCourses().map(course => `<option value="${escapeHtml(course.id)}">${escapeHtml(course.name)}${course.code ? ` (${escapeHtml(course.code)})` : ""}</option>`).join("");
     }
     if (taskSelect) {
       const options = state.tasks.filter(task => !task.completed).map(task => `<option value="${escapeHtml(task.id)}">${escapeHtml(task.title)}</option>`).join("");
@@ -538,6 +547,26 @@
     if (changed) state.courses = normalizeCourses(state.courses);
   }
 
+  function resolveUnfilteredCanvasTasks() {
+    let changed = false;
+    for (const task of state.tasks) {
+      if (task.courseId !== UNFILTERED_COURSE_ID || String(task.source || "").toLowerCase() !== "canvas") continue;
+      const rawId = String(task.rawCanvasCourseId || task.courseIdRaw || task.course_id || "").replace(/^canvas-course-/, "").trim();
+      const directId = rawId ? `canvas-course-${rawId}` : "";
+      const matched = state.courses.find(course => (
+        !course.hidden &&
+        ((directId && course.id === directId) ||
+          (task.courseName && String(course.name || "").toLowerCase() === String(task.courseName).toLowerCase()) ||
+          (task.courseCode && String(course.code || "").toLowerCase() === String(task.courseCode).toLowerCase()))
+      ));
+      if (matched) {
+        task.courseId = matched.id;
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
   function normalizeIncomingTask(raw, source) {
     const taskSource = String(raw?.source || source || "extension").toLowerCase();
     const rawCourse = String(raw?.courseId || raw?.course_id || raw?.context_code?.replace?.(/^course_/, "") || "").trim();
@@ -551,6 +580,7 @@
         state.courses.push({ id: courseId, name: courseName, code: raw?.courseCode || raw?.course_code || "", color: colorFromString(`${courseName}-${rawId}`), source: "canvas" });
       }
     }
+    if (taskSource === "canvas" && !state.courses.some(course => course.id === courseId)) courseId = UNFILTERED_COURSE_ID;
     if (!state.courses.some(course => course.id === courseId)) return null;
     const dueDate = parseDate(raw?.dueDate || raw?.due_at || raw?.start_at || raw?.startDate || raw?.date);
     if (!dueDate) return null;
@@ -564,6 +594,9 @@
       estimatedMinutes: Math.max(1, Math.min(360, Number(raw?.estimatedMinutes || raw?.minutes || 30))),
       source: taskSource,
       courseId,
+      rawCanvasCourseId: taskSource === "canvas" ? rawCourse.replace(/^canvas-course-/, "") : "",
+      courseName: taskSource === "canvas" ? String(raw?.courseName || raw?.context_name || raw?.course_name || "").trim() : "",
+      courseCode: taskSource === "canvas" ? String(raw?.courseCode || raw?.course_code || "").trim() : "",
       completed: Boolean(raw?.completed),
       externalKey,
       canvasUrl: raw?.canvasUrl || raw?.html_url || raw?.url || "",
@@ -586,7 +619,9 @@
   function handleExtensionPayload(payload) {
     if (!payload || typeof payload !== "object") return;
     upsertCanvasCourses(payload.courses || payload.canvasCourses || []);
+    resolveUnfilteredCanvasTasks();
     upsertTasks(payload.canvas || [], "canvas");
+    resolveUnfilteredCanvasTasks();
     upsertTasks(payload.teamsnap || [], "teamsnap");
     upsertTasks(payload.membean || [], "membean");
     saveState();

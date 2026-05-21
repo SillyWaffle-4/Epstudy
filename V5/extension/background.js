@@ -501,9 +501,20 @@ function normalizeDomain(value) {
 async function syncAllSources(config = {}) {
   const tabs = await chrome.tabs.query({});
   await rememberOpenTeamSnapTabs(tabs);
-  const hadCanvasTab = tabs.some((tab) => tab.url && sourceFromUrl(tab.url, config) === "canvas");
-  await Promise.allSettled(tabs.map((tab) => askTabToScrape(tab, config)));
+  const canvasTabs = tabs.filter(tab => tab.url && sourceFromUrl(tab.url, config) === "canvas");
+  const teamSnapTabs = tabs.filter(tab => tab.url && sourceFromUrl(tab.url, config) === "teamsnap");
+  const membeanTabs = tabs.filter(tab => tab.url && sourceFromUrl(tab.url, config) === "membean");
+
+  for (const tab of canvasTabs) await askTabToScrape(tab, config).catch(() => {});
+  if (canvasTabs.length) await broadcastToEpstudy(await getCache());
+
+  for (const tab of teamSnapTabs) await askTabToScrape(tab, config).catch(() => {});
   await scrapeRememberedTeamSnapLinks(tabs, config);
+  if (teamSnapTabs.length) await broadcastToEpstudy(await getCache());
+
+  for (const tab of membeanTabs) await askTabToScrape(tab, config).catch(() => {});
+
+  const hadCanvasTab = canvasTabs.length > 0;
   if (!hadCanvasTab) await markCanvasWaitingForReadablePage("No Canvas tab is open. Keeping the last saved Canvas data.");
   const cache = await getCache();
   await broadcastToEpstudy(cache);
