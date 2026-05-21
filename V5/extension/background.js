@@ -6,7 +6,6 @@ const TEAMSNAP_REMINDER_PREFIX = "epstudy-teamsnap-reminder:";
 const TEAMSNAP_LINK_LIMIT = 12;
 const TEAMSNAP_LINK_REFRESH_MS = 30 * 60 * 1000;
 const TEAMSNAP_NOTIFY_WINDOW_MS = 48 * 60 * 60 * 1000;
-const CANVAS_CARD_LIST_REFRESH_MS = 30 * 60 * 1000;
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create(SYNC_ALARM, { periodInMinutes: 10 });
@@ -301,9 +300,6 @@ async function mergeSourcePayload(source, payload, sender = null) {
     };
   }
   await chrome.storage.local.set(update);
-  if (safeSource === "canvas" && payload?.canvasDashboardView === "card") {
-    runCanvasCardModeListRefresh(sender?.tab?.url || "", { restoreCardView: true }).catch(() => {});
-  }
   if (safeSource === "teamsnap") {
     await chrome.storage.local.set({
       sourceStatus: {
@@ -519,56 +515,6 @@ async function syncAllSources(config = {}) {
   const cache = await getCache();
   await broadcastToEpstudy(cache);
   return cache;
-}
-
-function canvasDashboardUrlFrom(url, config = {}) {
-  try {
-    const parsed = new URL(String(url || ""));
-    if (sourceFromUrl(parsed.toString(), config) === "canvas") return `${parsed.origin}/`;
-  } catch {
-    // Fall back to the configured Canvas host below.
-  }
-  const canvasHost = String(config.canvasDomain || DEFAULT_CANVAS_HOST).replace(/^https?:\/\//, "").replace(/\/$/, "");
-  return `https://${canvasHost}/`;
-}
-
-async function runCanvasCardModeListRefresh(sourceUrl, config = {}) {
-  const data = await chrome.storage.local.get(["canvasCardListRefreshInFlight", "canvasCardListRefreshAt"]);
-  if (data.canvasCardListRefreshInFlight) return;
-  const lastRefresh = data.canvasCardListRefreshAt ? new Date(data.canvasCardListRefreshAt).getTime() : 0;
-  if (Number.isFinite(lastRefresh) && Date.now() - lastRefresh < CANVAS_CARD_LIST_REFRESH_MS) return;
-
-  let createdTab = null;
-  await chrome.storage.local.set({ canvasCardListRefreshInFlight: true });
-  try {
-    createdTab = await chrome.tabs.create({ url: canvasDashboardUrlFrom(sourceUrl, config), active: false });
-    await waitForTabLoad(createdTab.id, 15000);
-    const loadedTab = await chrome.tabs.get(createdTab.id);
-    await sendCanvasDashboardViewMessage(loadedTab, "list");
-    await waitForTabLoad(createdTab.id, 5000);
-    await askTabToScrape(await chrome.tabs.get(createdTab.id), { ...config, canvasListRefresh: true });
-    await chrome.storage.local.set({ canvasCardListRefreshAt: new Date().toISOString() });
-    const cache = await getCache();
-    await broadcastToEpstudy(cache);
-    if (config.restoreCardView) {
-      await sendCanvasDashboardViewMessage(await chrome.tabs.get(createdTab.id), "card").catch(() => {});
-    }
-  } catch {
-    // The normal card-view scrape remains available; retry after the cooldown window.
-  } finally {
-    await chrome.storage.local.set({ canvasCardListRefreshInFlight: false });
-    if (createdTab?.id) chrome.tabs.remove(createdTab.id).catch(() => {});
-  }
-}
-
-async function sendCanvasDashboardViewMessage(tab, view) {
-  if (!tab?.id) return null;
-  try {
-    return await chrome.tabs.sendMessage(tab.id, { type: "EPSTUDY_FORCE_CANVAS_DASHBOARD_VIEW", view });
-  } catch {
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["source-scraper.js"] });
-    return chrome.tabs.sendMessage(tab.id, { type: "EPSTUDY_FORCE_CANVAS_DASHBOARD_VIEW", view });
-  }
 }
 
 function normalizeTeamSnapLink(url) {

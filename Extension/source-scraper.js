@@ -174,6 +174,12 @@ function withTimeout(promise, timeoutMs, fallback) {
   ]);
 }
 
+function isVisibleCanvasElement(element) {
+  const rect = element?.getBoundingClientRect?.();
+  const style = window.getComputedStyle?.(element);
+  return Boolean(rect && rect.width > 0 && rect.height > 0 && style?.display !== "none" && style?.visibility !== "hidden");
+}
+
 async function fetchCanvasCourseForTask(courseIdRaw, task) {
   return await fetchCanvasCourseFromApi(courseIdRaw) || await fetchCanvasCourseFromAssignmentPage(courseIdRaw, task);
 }
@@ -471,17 +477,17 @@ async function extractDashboardCardTasks(cards) {
 
 async function scrapeCanvasApiTasks() {
   const rows = [];
-  const todoRows = await fetchCanvasApiPages(`${window.location.origin}/api/v1/users/self/todo?per_page=200`);
-  const plannerRows = await fetchCanvasApiPages(`${window.location.origin}/api/v1/planner/items?per_page=200`);
+  const todoRows = await fetchCanvasApiPages(`${window.location.origin}/api/v1/users/self/todo?per_page=100`);
+  const plannerRows = await fetchCanvasApiPages(`${window.location.origin}/api/v1/planner/items?per_page=100`);
   for (const item of [...todoRows, ...plannerRows]) {
     const normalized = await normalizeCanvasApiTask(item);
     if (normalized) rows.push(normalized);
   }
 
-  const cards = await fetchCanvasApiPages(`${window.location.origin}/api/v1/dashboard/dashboard_cards?per_page=200`);
+  const cards = await fetchCanvasApiPages(`${window.location.origin}/api/v1/dashboard/dashboard_cards?per_page=100`);
   rows.push(...(await extractDashboardCardTasks(cards)));
 
-  const courses = await fetchCanvasApiPages(`${window.location.origin}/api/v1/courses?enrollment_state=active&per_page=200`);
+  const courses = await fetchCanvasApiPages(`${window.location.origin}/api/v1/courses?enrollment_state=active&per_page=100`);
   for (const course of courses.slice(0, 30)) {
     if (!course?.id || course.access_restricted_by_date) continue;
     const assignments = await fetchCanvasApiPages(`${window.location.origin}/api/v1/courses/${course.id}/assignments?bucket=upcoming&per_page=100`);
@@ -562,8 +568,10 @@ function detectCanvasDashboardView() {
   ));
   if (/\bcard view\b/i.test(activeViewText)) return "card";
   if (/\blist view\b/i.test(activeViewText)) return "list";
-  if (document.querySelector(".ic-DashboardCard, [class*='DashboardCard'], [data-testid*='dashboard-card']")) return "card";
-  if (document.querySelector(".planner-item, [class*='PlannerItem'], [class*='PlannerEmpty'], [class*='planner']")) return "list";
+  const visibleCards = Array.from(document.querySelectorAll(".ic-DashboardCard, [class*='DashboardCard'], [data-testid*='dashboard-card']"));
+  if (visibleCards.some(isVisibleCanvasElement)) return "card";
+  const visibleListItems = Array.from(document.querySelectorAll(".planner-item, [class*='PlannerItem'], [class*='PlannerEmpty'], [class*='planner']"));
+  if (visibleListItems.some(isVisibleCanvasElement)) return "list";
   return "unknown";
 }
 
@@ -673,11 +681,11 @@ function scrapeCanvasDashboardCardTasks() {
 }
 
 async function scrapeCanvasTasks() {
-  const apiRows = await scrapeCanvasApiTasks();
   const visibleRows = detectCanvasDashboardView() === "card"
     ? scrapeCanvasDashboardCardTasks()
     : [...scrapeCanvasAssignmentLinkTasks(), ...scrapeVisibleCanvasTasks(), ...scrapeCanvasDashboardCardTasks()];
-  return dedupe([...apiRows, ...visibleRows]);
+  const apiRows = await withTimeout(scrapeCanvasApiTasks(), 4500, []);
+  return dedupe([...visibleRows, ...apiRows]);
 }
 
 function getTeamSnapPageMeta() {
