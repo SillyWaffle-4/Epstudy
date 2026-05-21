@@ -409,11 +409,23 @@
   .eps-block.active { background: var(--gold); border-color: var(--gold); border-left-color: var(--navy-primary); color: #111827; box-shadow: 0 10px 24px -18px rgba(0, 0, 0, 0.45); }
   .eps-block.active strong, .eps-block.active .mini-text { color: #111827; }
   .eps-block strong { display: block; color: var(--navy-primary); font-size: 0.95rem; }
-  .eps-lunch-card { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-gray); padding: 1rem 1.25rem; display: grid; gap: 1rem; align-items: stretch; position: sticky; top: 1rem; }
+  .eps-lunch-card { border: 1px solid color-mix(in srgb, var(--gold) 44%, var(--border)); border-radius: var(--radius-lg); background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 92%, var(--gold)), var(--panel)); padding: 1rem; display: grid; gap: 0.75rem; align-items: start; position: sticky; top: 1rem; box-shadow: var(--shadow-sm); }
+  .eps-lunch-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--text-dark); }
+  .eps-lunch-heading strong { color: var(--navy-primary); font-size: 1rem; }
+  .eps-lunch-date { color: var(--muted); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+  .lunch-menu-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .lunch-menu-list li { padding: 7px 9px; border: 1px solid var(--border); border-radius: 7px; background: color-mix(in srgb, var(--panel) 84%, var(--bg-gray)); color: var(--text-dark); font-size: 0.84rem; font-weight: 700; line-height: 1.25; }
+  .lunch-menu-empty { border: 1px dashed var(--border); border-radius: 8px; padding: 10px; color: var(--muted); background: var(--bg-gray); font-size: 0.84rem; }
   .skin-choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
   .skin-choice { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; background: var(--panel); cursor: pointer; text-align: left; font-weight: 800; color: var(--text-dark); min-height: 74px; display: grid; align-content: space-between; }
   .skin-choice span { display: block; color: var(--muted); font-size: 0.72rem; font-weight: 700; margin-top: 5px; }
   .skin-choice.active { border-color: var(--navy-primary); box-shadow: inset 0 3px 0 var(--navy-primary), var(--shadow-sm); }
+  .skin-choice.locked { opacity: 0.58; cursor: not-allowed; filter: grayscale(0.25); }
+  .skin-choice.locked::after { content: "Locked"; position: absolute; top: 10px; right: 10px; border: 1px solid var(--border); border-radius: 999px; padding: 2px 7px; background: var(--bg-gray); color: var(--muted); font-size: 0.62rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.06em; }
+  .cosmetics-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 1rem; }
+  .cosmetics-stat { border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--panel); padding: 0.85rem; box-shadow: var(--shadow-sm); }
+  .cosmetics-stat strong { display: block; color: var(--text-dark); font-size: 1.2rem; }
+  .cosmetics-locked-note { margin-bottom: 1rem; border: 1px solid color-mix(in srgb, var(--gold) 60%, var(--border)); border-radius: var(--radius-md); background: color-mix(in srgb, var(--gold) 12%, var(--panel)); padding: 0.85rem; color: var(--text-dark); font-weight: 700; }
 
   /* Full Calendar Specific */
   .full-calendar-cell { min-height: 185px; padding: 10px; border: 1px solid var(--border); background: var(--panel); overflow-y: auto; transition: box-shadow 0.2s; }
@@ -633,6 +645,7 @@
     <button class="nav-btn" data-page="tasks" onclick="navigate('tasks')"><span class="nav-icon">TS</span>Tasks</button>
     <button class="nav-btn" data-page="timer" onclick="navigate('timer')"><span class="nav-icon">FT</span>Focus Timer</button>
     <button class="nav-btn" data-page="calendar" onclick="navigate('calendar')"><span class="nav-icon">CA</span>Full Calendar</button>
+    <button class="nav-btn" data-page="cosmetics" onclick="navigate('cosmetics')"><span class="nav-icon">CS</span>Cosmetics</button>
     <button class="nav-btn" data-page="settings" onclick="navigate('settings')"><span class="nav-icon">ST</span>Settings</button>
     <button class="nav-btn" data-page="contact" onclick="navigate('contact')"><span class="nav-icon">CO</span>Contact</button>
   </div>
@@ -857,73 +870,6 @@
       <div style="margin-top: 1.5rem; text-align: center;">
         <button id="privacyGuideBtn" class="button" type="button">How We Store Your Info</button>
       </div>
-      <section class="panel" style="margin-top: 1.5rem;">
-        <div class="calendar-top">
-          <h2>Dashboard Skins</h2>
-          <button id="skinLibraryToggleBtn" class="button primary" type="button" aria-expanded="false">Show Skins</button>
-        </div>
-        <div id="skinLibraryBody" hidden>
-          <div class="row" style="margin-bottom: 12px;">
-            <button id="randomSkinBtn" class="button" type="button">Random Skin</button>
-            <button id="defaultSkinBtn" class="button" type="button">Reset Skin</button>
-          </div>
-          <div class="skin-library-tools">
-            <label>
-              <span class="field-label">Find skin</span>
-              <input id="skinSearchInput" class="field" type="search" placeholder="Search colors, mood, animated..." autocomplete="off" />
-            </label>
-            <label>
-              <span class="field-label">Category</span>
-              <select id="skinCategorySelect" class="field">
-                <option value="all">All skins</option>
-                <option value="clean">Clean</option>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-                <option value="animated">Animated</option>
-                <option value="playful">Playful</option>
-              </select>
-            </label>
-            <label style="display:flex; gap:8px; align-items:center; color:var(--text-dark);"><input id="skinsVisible" type="checkbox" /> Show skins</label>
-            <label style="display:flex; gap:8px; align-items:center; color:var(--text-dark);"><input id="confettiEnabled" type="checkbox" /> Confetti</label>
-          </div>
-          <div id="skinChoiceGrid" class="skin-choice-grid"></div>
-          <div class="row" style="margin-top: 12px;">
-            <label style="display:flex; gap:8px; align-items:center; color:var(--text-dark);"><input id="skinLockCheckbox" type="checkbox" /> Only change skins during free periods</label>
-          </div>
-          <div class="skin-upload-panel">
-            <strong style="color: var(--text-dark);">Custom Background Skin</strong>
-            <p class="mini-text">Upload a local image to use as the page background. It is stored only in this browser.</p>
-            <input id="skinUploadInput" type="file" accept="image/*" />
-            <p id="skinUploadStatus" class="mini-text">No custom background loaded.</p>
-          </div>
-          <div class="music-controls">
-            <label>
-              Background music
-              <select id="musicModeSelect" class="field">
-                <option value="none">None</option>
-                <option value="chill">Chill</option>
-                <option value="study">Study</option>
-                <option value="lofi">Lofi</option>
-                <option value="deep">Deep Focus</option>
-                <option value="rain">Rain Study</option>
-                <option value="cafe">Cafe</option>
-                <option value="piano">Soft Piano</option>
-                <option value="ocean">Ocean</option>
-                <option value="imported">Imported audio</option>
-              </select>
-            </label>
-            <label>
-              Volume
-              <input id="musicVolumeRange" type="range" min="0" max="100" value="35" />
-            </label>
-            <div class="music-file-row">
-              <label for="musicImportInput">Import audio</label>
-              <input id="musicImportInput" type="file" accept="audio/*" />
-              <p id="musicImportStatus" class="mini-text">No imported track yet.</p>
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
 
     <!-- TASKS PAGE -->
@@ -1082,7 +1028,7 @@
         <div class="eps-lunch-card">
           <div>
             <strong style="color: var(--navy-primary);">Lunch</strong>
-            <p id="lunchSummary" class="mini-text">Checking lunch calendar...</p>
+            <div id="lunchSummary" class="mini-text">Checking lunch calendar...</div>
           </div>
           <button id="refreshScheduleBtn" class="button" type="button">Refresh Schedule</button>
         </div>
@@ -1095,6 +1041,79 @@
       <section id="allAssignmentsSection" hidden>
         <h3 style="margin-top: 1rem; color: var(--navy-primary);">All Upcoming Assignments</h3>
         <div id="allAssignmentsContainer" class="calendar-all-assignments"></div>
+      </section>
+    </div>
+
+    <!-- COSMETICS PAGE -->
+    <div id="page-cosmetics" class="page">
+      <h2 class="section-title">Cosmetics</h2>
+      <div id="cosmeticsLockedNote" class="cosmetics-locked-note" hidden>Cosmetics unlock outside active class periods.</div>
+      <div class="cosmetics-summary">
+        <div class="cosmetics-stat"><span class="mini-text">Counted focus time</span><strong id="cosmeticsFocusMinutes">0m</strong></div>
+        <div class="cosmetics-stat"><span class="mini-text">Counted sessions</span><strong id="cosmeticsSessionCount">0</strong></div>
+        <div class="cosmetics-stat"><span class="mini-text">Unlocked skins</span><strong id="cosmeticsUnlockedCount">10</strong></div>
+      </div>
+      <section class="panel">
+        <div class="calendar-top">
+          <h2>Skins & Audio</h2>
+          <div class="row">
+            <button id="randomSkinBtn" class="button" type="button">Random Skin</button>
+            <button id="defaultSkinBtn" class="button" type="button">Reset Skin</button>
+          </div>
+        </div>
+        <div class="skin-library-tools">
+          <label>
+            <span class="field-label">Find skin</span>
+            <input id="skinSearchInput" class="field" type="search" placeholder="Search colors, mood, animated..." autocomplete="off" />
+          </label>
+          <label>
+            <span class="field-label">Category</span>
+            <select id="skinCategorySelect" class="field">
+              <option value="all">All skins</option>
+              <option value="clean">Clean</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="animated">Animated</option>
+              <option value="playful">Playful</option>
+            </select>
+          </label>
+          <label style="display:flex; gap:8px; align-items:center; color:var(--text-dark);"><input id="skinsVisible" type="checkbox" /> Show skins</label>
+          <label style="display:flex; gap:8px; align-items:center; color:var(--text-dark);"><input id="confettiEnabled" type="checkbox" /> Confetti</label>
+        </div>
+        <div id="skinChoiceGrid" class="skin-choice-grid"></div>
+        <p class="mini-text" style="margin-top: 12px;">Sessions only count when the timer has actually run for at least 10 minutes. Animated skins unlock a little later than still skins.</p>
+        <div class="skin-upload-panel">
+          <strong style="color: var(--text-dark);">Custom Background Skin</strong>
+          <p class="mini-text">Upload a local image to use as the page background. It is stored only in this browser.</p>
+          <input id="skinUploadInput" type="file" accept="image/*" />
+          <p id="skinUploadStatus" class="mini-text">No custom background loaded.</p>
+        </div>
+        <div class="music-controls">
+          <label>
+            Background music
+            <select id="musicModeSelect" class="field">
+              <option value="none">None</option>
+              <option value="chill">Chill</option>
+              <option value="study">Study</option>
+              <option value="lofi">Lofi</option>
+              <option value="deep">Deep Focus</option>
+              <option value="rain">Rain Study</option>
+              <option value="cafe">Cafe</option>
+              <option value="piano">Soft Piano</option>
+              <option value="ocean">Ocean</option>
+              <option value="imported">Imported audio</option>
+            </select>
+          </label>
+          <label>
+            Volume
+            <input id="musicVolumeRange" type="range" min="0" max="100" value="35" />
+          </label>
+          <div class="music-file-row">
+            <label for="musicImportInput">Import audio</label>
+            <input id="musicImportInput" type="file" accept="audio/*" />
+            <p id="musicImportStatus" class="mini-text">No imported track yet.</p>
+          </div>
+        </div>
       </section>
     </div>
 
@@ -1381,6 +1400,7 @@
     tasks: "Tasks",
     timer: "Focus Timer",
     calendar: "Full Calendar",
+    cosmetics: "Cosmetics",
     settings: "Settings",
     contact: "Contact"
   };
@@ -1457,6 +1477,31 @@
     { id: "upload", name: "Custom", detail: "Your uploaded image", category: "clean", swatches: ["#64748b", "#f8fafc"] }
   ];
   const SKIN_IDS = SKIN_LIBRARY.map(skin => skin.id);
+  const DEFAULT_UNLOCKED_SKINS = ["default", "campus", "library", "graphite", "steel", "notebook", "rainbow", "candy", "citrus", "mint"];
+  const SKIN_UNLOCK_RULES = {
+    forest: { minutes: 10, label: "Study 10 counted minutes" },
+    ocean: { minutes: 20, label: "Study 20 counted minutes" },
+    meadow: { sessions: 2, label: "Complete 2 counted sessions" },
+    glacier: { minutes: 35, label: "Study 35 counted minutes" },
+    sunset: { minutes: 45, label: "Study 45 counted minutes" },
+    rose: { sessions: 4, label: "Complete 4 counted sessions" },
+    ruby: { minutes: 60, label: "Study 60 counted minutes" },
+    solar: { minutes: 75, label: "Study 75 counted minutes" },
+    sparkle: { sessions: 5, label: "Complete 5 counted sessions" },
+    chalkboard: { minutes: 90, label: "Study 90 counted minutes" },
+    arcade: { minutes: 105, label: "Study 105 counted minutes" },
+    stars: { minutes: 120, sessions: 6, label: "Study 120 minutes and complete 6 sessions" },
+    rain: { minutes: 135, label: "Study 135 counted minutes" },
+    autumn: { minutes: 150, label: "Study 150 counted minutes" },
+    snow: { minutes: 165, label: "Study 165 counted minutes" },
+    bloom: { minutes: 180, label: "Study 180 counted minutes" },
+    aurora: { minutes: 210, sessions: 8, label: "Study 210 minutes and complete 8 sessions" },
+    midnight: { minutes: 240, label: "Study 240 counted minutes" },
+    cyber: { minutes: 270, sessions: 10, label: "Study 270 minutes and complete 10 sessions" },
+    matrix: { minutes: 300, label: "Study 300 counted minutes" },
+    ember: { minutes: 330, label: "Study 330 counted minutes" },
+    upload: { minutes: 30, label: "Study 30 counted minutes" }
+  };
   const SKIN_EFFECTS = {
     stars: { count: 115, type: "stars" },
     aurora: { count: 26, type: "aurora" },
@@ -1507,6 +1552,7 @@
       canvasImports: 0, teamsnapImports: 0, minimalist: false, tutorialSeen: false,
       selectedSkin: "default", skinsVisible: true, confettiEnabled: true,
       skinSearch: "", skinCategory: "all", customSkinDataUrl: "", customSkinName: "",
+      unlockedSkins: [...DEFAULT_UNLOCKED_SKINS],
       taskFilters: { search: "", status: "open", source: "all", course: "all", sort: "due" },
       musicMode: "none", musicVolume: 35, importedMusicName: "", importedMusicDataUrl: "",
       membeanEnabled: false,
@@ -1520,7 +1566,6 @@
       notifications: [],
       notificationSettings: { membean: false, quizzes: true, assignments: true, overdue: true, timerdone: true },
       currentPage: "dashboard",
-      skinChangeRestrictedToFreePeriods: true,
       focusBlockerEnabled: true,
       ambientFocusMode: false,
       smartDismissedTaskIds: [],
@@ -1539,7 +1584,7 @@
       dashboardExpansionSections: {},
       dashboardExpandedSections: {},
       dashboardLayout: defaultDashboardLayout(),
-      skinLibraryOpen: false
+      skinLibraryOpen: true
     };
   }
 
@@ -1561,6 +1606,37 @@
     return /\b(course analytics|view course stream)\b/i.test(label) || /^(assignments?|files?)$/i.test(label);
   }
 
+  function skinUnlockMet(rule, snapshot = state) {
+    if (!rule) return true;
+    const minutesOk = !rule.minutes || Number(snapshot.focusMinutes || 0) >= rule.minutes;
+    const sessionsOk = !rule.sessions || Number(snapshot.sessionsCompleted || 0) >= rule.sessions;
+    return minutesOk && sessionsOk;
+  }
+
+  function normalizeUnlockedSkins(raw, snapshot = state) {
+    const unlocked = new Set(DEFAULT_UNLOCKED_SKINS);
+    if (Array.isArray(raw)) raw.map(String).filter(id => SKIN_IDS.includes(id)).forEach(id => unlocked.add(id));
+    SKIN_LIBRARY.forEach(skin => {
+      if (skinUnlockMet(SKIN_UNLOCK_RULES[skin.id], snapshot)) unlocked.add(skin.id);
+    });
+    return Array.from(unlocked).filter(id => SKIN_IDS.includes(id));
+  }
+
+  function updateUnlockedSkins(notify = false) {
+    const before = new Set(state.unlockedSkins || []);
+    state.unlockedSkins = normalizeUnlockedSkins(state.unlockedSkins, state);
+    const newlyUnlocked = state.unlockedSkins.filter(id => !before.has(id));
+    if (notify && newlyUnlocked.length) {
+      const names = newlyUnlocked.map(id => SKIN_LIBRARY.find(skin => skin.id === id)?.name || id).join(", ");
+      addNotification(`Unlocked cosmetics: ${names}`, "info", 4500);
+    }
+    return newlyUnlocked;
+  }
+
+  function isSkinUnlocked(skinId) {
+    return (state.unlockedSkins || DEFAULT_UNLOCKED_SKINS).includes(skinId);
+  }
+
   function loadState() {
     const base = defaultState();
     try {
@@ -1580,6 +1656,8 @@
       merged.skinsVisible = typeof merged.skinsVisible === "boolean" ? merged.skinsVisible : true;
       merged.skinSearch = typeof merged.skinSearch === "string" ? merged.skinSearch : "";
       merged.skinCategory = ["all", "clean", "light", "dark", "animated", "playful"].includes(merged.skinCategory) ? merged.skinCategory : "all";
+      merged.unlockedSkins = normalizeUnlockedSkins(merged.unlockedSkins, merged);
+      if (!merged.unlockedSkins.includes(merged.selectedSkin)) merged.selectedSkin = "default";
       merged.customSkinName = typeof merged.customSkinName === "string" ? merged.customSkinName : "";
       merged.customSkinDataUrl = typeof merged.customSkinDataUrl === "string" && merged.customSkinDataUrl.startsWith("data:image/") ? merged.customSkinDataUrl : "";
       merged.taskFilters = typeof merged.taskFilters === "object" && merged.taskFilters ? { ...base.taskFilters, ...merged.taskFilters } : { ...base.taskFilters };
@@ -1607,7 +1685,7 @@
       merged.lunchItems = typeof merged.lunchItems === "object" && merged.lunchItems ? merged.lunchItems : {};
       merged.lastCourseResyncAt = typeof merged.lastCourseResyncAt === "string" ? merged.lastCourseResyncAt : null;
       merged.dashboardLayout = normalizeDashboardLayout(merged.dashboardLayout);
-      merged.skinLibraryOpen = false;
+      merged.skinLibraryOpen = true;
       merged.dashboardSections = typeof merged.dashboardSections === "object" && merged.dashboardSections ? { ...DEFAULT_DASHBOARD_SECTIONS, ...merged.dashboardSections } : { ...DEFAULT_DASHBOARD_SECTIONS };
       merged.dashboardExpansionSections = typeof merged.dashboardExpansionSections === "object" && merged.dashboardExpansionSections ? merged.dashboardExpansionSections : {};
       merged.dashboardExpandedSections = typeof merged.dashboardExpandedSections === "object" && merged.dashboardExpandedSections ? merged.dashboardExpandedSections : {};
@@ -1726,6 +1804,8 @@
   let timerDurationSeconds = Math.max(1, Number(state.timerMinutes || 25)) * 60;
   let timerRemainingSeconds = timerDurationSeconds;
   let timerInterval = null;
+  let timerSessionStartedAt = null;
+  let timerElapsedBeforePauseSeconds = 0;
   let lastAutoFilledTaskId = null;
   let currentSubmissionTask = null; // Used for Canvas Text Submission
   let musicCtx = null;
@@ -1769,6 +1849,10 @@
   // ROUTING VIA HISTORY API
   function navigate(page, updateHistory = true) {
     if (!PAGE_LABELS[page]) page = "dashboard";
+    if (page === "cosmetics" && !canOpenCosmetics()) {
+      addNotification("Cosmetics open outside active class periods.", "warning", 2500);
+      page = "dashboard";
+    }
     state.currentPage = page;
     if (page === "calendar") {
       cleanupCalendarOverlaps(true);
@@ -2809,17 +2893,23 @@
   function renderSkinChoices() {
     const grid = document.getElementById("skinChoiceGrid");
     if (!grid) return;
+    updateUnlockedSkins(false);
     const query = String(state.skinSearch || "").trim().toLowerCase();
     const category = state.skinCategory || "all";
     const skins = SKIN_LIBRARY.filter(skin => {
       const searchable = `${skin.name} ${skin.detail} ${skin.category}`.toLowerCase();
       return (!query || searchable.includes(query)) && (category === "all" || skin.category === category || (category === "animated" && skin.effect));
     });
-    grid.innerHTML = skins.map(skin => `<button class="skin-choice" type="button" data-skin-choice="${skin.id}" style="--swatch-a:${skin.swatches[0]};--swatch-b:${skin.swatches[1]};">
+    grid.innerHTML = skins.map(skin => {
+      const unlocked = isSkinUnlocked(skin.id);
+      const rule = SKIN_UNLOCK_RULES[skin.id];
+      const detail = unlocked ? skin.detail : (rule?.label || skin.detail);
+      return `<button class="skin-choice${unlocked ? "" : " locked"}" type="button" data-skin-choice="${skin.id}" ${unlocked ? "" : "disabled aria-disabled=\"true\""} style="--swatch-a:${skin.swatches[0]};--swatch-b:${skin.swatches[1]};">
       ${escapeHtml(skin.name)}
-      <span>${escapeHtml(skin.detail)}</span>
+      <span>${escapeHtml(detail)}</span>
       <small>${escapeHtml(skin.effect ? "animated" : skin.category)}</small>
-    </button>`).join("") || "<p class='empty'>No skins match that filter.</p>";
+    </button>`;
+    }).join("") || "<p class='empty'>No skins match that filter.</p>";
     document.querySelectorAll("[data-skin-choice]").forEach(btn => btn.classList.toggle("active", btn.dataset.skinChoice === state.selectedSkin));
     const search = document.getElementById("skinSearchInput");
     if (search && document.activeElement !== search) search.value = state.skinSearch || "";
@@ -2827,6 +2917,12 @@
     if (select) select.value = state.skinCategory || "all";
     const uploadStatus = document.getElementById("skinUploadStatus");
     if (uploadStatus) uploadStatus.textContent = state.customSkinName ? `Loaded: ${state.customSkinName}` : "No custom background loaded.";
+    const focus = document.getElementById("cosmeticsFocusMinutes");
+    if (focus) focus.textContent = `${state.focusMinutes || 0}m`;
+    const sessions = document.getElementById("cosmeticsSessionCount");
+    if (sessions) sessions.textContent = String(state.sessionsCompleted || 0);
+    const unlockedCount = document.getElementById("cosmeticsUnlockedCount");
+    if (unlockedCount) unlockedCount.textContent = `${(state.unlockedSkins || []).length}/${SKIN_LIBRARY.length}`;
   }
 
   function syncSkinLibraryToggle() {
@@ -2913,13 +3009,13 @@
       { id: "tasks", icon: "TS", title: "Open Tasks", detail: "Search, filter, and manage work", run: () => navigate("tasks") },
       { id: "timer", icon: "FT", title: "Open Focus Timer", detail: "Start or tune a focus session", run: () => navigate("timer") },
       { id: "calendar", icon: "CA", title: "Open Calendar", detail: "See assignments and events", run: () => navigate("calendar") },
-      { id: "settings", icon: "ST", title: "Open Settings", detail: "Integrations, skins, data, dashboard", run: () => navigate("settings") },
+      { id: "settings", icon: "ST", title: "Open Settings", detail: "Integrations, data, dashboard", run: () => navigate("settings") },
       { id: "sync", icon: "SY", title: "Sync Extension", detail: "Ask the extension for fresh data", run: () => requestExtensionSync() },
       { id: "smart", icon: "AI", title: "Load Smart Task", detail: "Put the top recommendation in the timer", run: () => { const smart = pickSmartTask(); if (smart.task) loadTaskInTimer(smart.task.id); } },
       { id: "add", icon: "AD", title: "Add Task", detail: "Jump to the task form", run: () => { navigate("tasks"); const details = document.getElementById("addTaskDetails"); if (details) details.open = true; document.getElementById("taskTitle")?.focus(); } },
       { id: "export", icon: "EX", title: "Export Workspace", detail: "Download a JSON backup", run: exportWorkspace },
       { id: "summary", icon: "CP", title: "Copy Summary", detail: "Copy your queue and focus stats", run: copyWorkspaceSummary },
-      { id: "skin", icon: "SK", title: "Pick A Skin", detail: "Open the skin library", run: () => { navigate("settings"); state.skinLibraryOpen = true; saveState(); renderAll(); document.getElementById("skinSearchInput")?.focus(); } },
+      { id: "skin", icon: "CS", title: "Pick A Skin", detail: "Open cosmetics", run: () => { navigate("cosmetics"); renderAll(); document.getElementById("skinSearchInput")?.focus(); } },
       { id: "guide", icon: "GD", title: "Open Guide", detail: "Show setup and feature guide", run: () => document.getElementById("welcomeModal")?.classList.add("open") }
     ];
   }
@@ -3330,6 +3426,8 @@
   function setTimerFromMinutes(mins, silent = false) {
     const m = Math.max(1, Number(mins) || 25);
     state.timerMinutes = m; timerDurationSeconds = m * 60; timerRemainingSeconds = timerDurationSeconds;
+    timerSessionStartedAt = null;
+    timerElapsedBeforePauseSeconds = 0;
     const ti = document.getElementById("timerInput"); if (ti) ti.value = String(m);
     const tei = document.getElementById("timerExpandedInput"); if (tei) tei.value = String(m);
     updateTimerUi();
@@ -3340,6 +3438,8 @@
   function resetFocusTimer() {
     clearInterval(timerInterval);
     timerInterval = null;
+    timerSessionStartedAt = null;
+    timerElapsedBeforePauseSeconds = 0;
     clearTimerTask();
     publishFocusShield();
     setTimerFromMinutes(state.timerMinutes, true);
@@ -3355,6 +3455,10 @@
     const th = document.getElementById("timerHint");
     if (timerInterval) {
       clearInterval(timerInterval); timerInterval = null; 
+      if (timerSessionStartedAt) {
+        timerElapsedBeforePauseSeconds += Math.max(0, Math.floor((Date.now() - timerSessionStartedAt) / 1000));
+        timerSessionStartedAt = null;
+      }
       publishFocusShield();
       if (btn) btn.textContent = "Resume Focus";
       const ebtn = document.getElementById("startPauseExpandedBtn"); if (ebtn) ebtn.textContent = "Resume Focus";
@@ -3362,6 +3466,7 @@
       const eth = document.getElementById("timerExpandedHint"); if (eth) eth.textContent = "Timer paused.";
     } else {
       if (timerRemainingSeconds <= 0) timerRemainingSeconds = timerDurationSeconds;
+      timerSessionStartedAt = Date.now();
       timerInterval = window.setInterval(() => {
         timerRemainingSeconds--; updateTimerUi();
         if (timerRemainingSeconds <= 0) { timerRemainingSeconds = 0; updateTimerUi(); completeSession(); }
@@ -3388,8 +3493,24 @@
   function completeSession(overrideMins = null) {
     clearInterval(timerInterval); timerInterval = null;
     publishFocusShield();
+    const elapsedSeconds = overrideMins === null
+      ? Math.max(0, timerElapsedBeforePauseSeconds + (timerSessionStartedAt ? Math.floor((Date.now() - timerSessionStartedAt) / 1000) : 0), timerDurationSeconds - timerRemainingSeconds)
+      : Math.max(0, Number(overrideMins) * 60);
+    timerSessionStartedAt = null;
+    timerElapsedBeforePauseSeconds = 0;
+    if (elapsedSeconds < 10 * 60) {
+      const remaining = Math.ceil((10 * 60 - elapsedSeconds) / 60);
+      const msg = `Session not counted yet. Focus for ${remaining} more minute${remaining === 1 ? "" : "s"} to log it.`;
+      const th = document.getElementById("timerHint"); if (th) th.textContent = msg;
+      const eth = document.getElementById("timerExpandedHint"); if (eth) eth.textContent = msg;
+      const btn = document.getElementById("startPauseBtn"); if (btn) btn.textContent = "Start Focus";
+      const ebtn = document.getElementById("startPauseExpandedBtn"); if (ebtn) ebtn.textContent = "Start Focus";
+      updateTimerUi();
+      return;
+    }
+    const countedMinutes = Math.max(10, Math.round(elapsedSeconds / 60));
     state.sessionsCompleted++;
-    state.focusMinutes += (overrideMins === null ? Math.max(1, Math.round(timerDurationSeconds / 60)) : Math.max(1, Number(overrideMins)));
+    state.focusMinutes += countedMinutes;
     
     const today = new Date().toISOString().slice(0, 10);
     if (state.lastSessionDate && state.lastSessionDate !== today) {
@@ -3408,6 +3529,7 @@
     const eth = document.getElementById("timerExpandedHint");
     if (eth) eth.textContent = doneTask ? `Done! "${doneTask.title}" marked complete. No task loaded.` : "Session logged. No task loaded.";
     notifyTimerFinished(doneTask);
+    updateUnlockedSkins(true);
     setTimerFromMinutes(state.timerMinutes, true);
     
     const btn = document.getElementById("startPauseBtn");
@@ -3681,12 +3803,36 @@
       .trim();
   }
 
+  function lunchMenuItems(summary) {
+    return String(summary || "")
+      .replace(/^lunch\s*:?\s*/i, "")
+      .split(/\s*(?:,|;|\||\/|\s-\s)\s*/)
+      .map(item => item.replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .slice(0, 10);
+  }
+
+  function renderLunchSummary(summary, dateLabel = lunchDateLabel(scheduleInfoDateKey())) {
+    const label = document.getElementById("lunchSummary");
+    if (!label) return;
+    const items = lunchMenuItems(summary);
+    const date = escapeHtml(dateLabel || "");
+    if (!items.length) {
+      label.innerHTML = `<div class="lunch-menu-empty">${escapeHtml(summary || "Lunch menu not found for this date.")}</div>`;
+      return;
+    }
+    label.innerHTML = `
+      <div class="eps-lunch-heading"><strong>Menu</strong><span class="eps-lunch-date">${date}</span></div>
+      <ul class="lunch-menu-list">${items.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
+    `;
+  }
+
   async function fetchLunchForSelectedDate() {
     const label = document.getElementById("lunchSummary");
     if (!label) return;
     const dateKey = scheduleInfoDateKey();
     if (state.lunchItems[dateKey]) {
-      label.textContent = state.lunchItems[dateKey];
+      renderLunchSummary(state.lunchItems[dateKey]);
       return;
     }
     try {
@@ -3703,13 +3849,14 @@
       if (exactLunch) {
           state.lunchItems[dateKey] = exactLunch.summary;
           saveState();
-          label.textContent = state.lunchItems[dateKey];
+          renderLunchSummary(state.lunchItems[dateKey]);
           return;
       }
       const nextLunch = events.find(event => event.dateKey > dateKey);
-      label.textContent = nextLunch ? `Next lunch (${lunchDateLabel(nextLunch.dateKey)}): ${nextLunch.summary}` : "Lunch menu not found for this date.";
+      if (nextLunch) renderLunchSummary(nextLunch.summary, `Next: ${lunchDateLabel(nextLunch.dateKey)}`);
+      else renderLunchSummary("Lunch menu not found for this date.");
     } catch {
-      label.textContent = "Lunch calendar could not be loaded.";
+      renderLunchSummary("Lunch calendar could not be loaded.");
     }
   }
 
@@ -4378,10 +4525,23 @@
 
 
   function canChangeSkin() {
-    if (!state.skinChangeRestrictedToFreePeriods) return true;
+    return canOpenCosmetics();
+  }
+
+  function canOpenCosmetics(date = new Date()) {
     const avail = getAvailabilityStatus();
-    const sched = getScheduleStatus();
-    return avail.isFreeNow || !sched.inClass || sched.isStudyHall;
+    const sched = getScheduleStatus(date);
+    const label = String(sched.currentBlock?.label || "");
+    return avail.isFreeNow || !sched.inClass || sched.isStudyHall || /lunch|club|activit|flex|advisory|band/i.test(label);
+  }
+
+  function syncCosmeticsAccess() {
+    const allowed = canOpenCosmetics();
+    const btn = document.querySelector('[data-page="cosmetics"]');
+    if (btn) btn.hidden = !allowed;
+    const note = document.getElementById("cosmeticsLockedNote");
+    if (note) note.hidden = allowed;
+    if (!allowed && state.currentPage === "cosmetics") navigate("dashboard");
   }
 
   function setMembeanEnabled(enabled) {
@@ -4421,6 +4581,7 @@
     
     renderSkinChoices();
     syncSkinLibraryToggle();
+    syncCosmeticsAccess();
     updateSkinEffect();
     
     
@@ -5003,18 +5164,6 @@
       });
     });
 
-    document.getElementById("skinLockCheckbox")?.addEventListener("change", e => {
-      state.skinChangeRestrictedToFreePeriods = e.target.checked;
-      saveState();
-      addNotification(e.target.checked ? "Skin changes restricted to free periods" : "Skins can be changed anytime", "info", 2000);
-    });
-
-    document.getElementById("skinLibraryToggleBtn")?.addEventListener("click", () => {
-      state.skinLibraryOpen = !state.skinLibraryOpen;
-      saveState(); syncSkinLibraryToggle();
-      if (state.skinLibraryOpen) renderSkinChoices();
-    });
-
     document.getElementById("skinsVisible")?.addEventListener("change", e => {
       state.skinsVisible = e.target.checked;
       saveState(); renderAll();
@@ -5087,7 +5236,7 @@
       saveState(); renderSkinChoices();
     });
     document.getElementById("randomSkinBtn")?.addEventListener("click", () => {
-      const options = SKIN_LIBRARY.filter(skin => skin.id !== "upload" || state.customSkinDataUrl);
+      const options = SKIN_LIBRARY.filter(skin => isSkinUnlocked(skin.id) && (skin.id !== "upload" || state.customSkinDataUrl));
       const pick = options[Math.floor(Math.random() * options.length)];
       if (!pick) return;
       if (!canChangeSkin()) {
@@ -5106,6 +5255,10 @@
     document.getElementById("skinUploadInput")?.addEventListener("change", e => {
       const file = e.target.files?.[0];
       if (!file) return;
+      if (!isSkinUnlocked("upload")) {
+        addNotification(SKIN_UNLOCK_RULES.upload?.label || "Custom backgrounds are still locked.", "warning", 3000);
+        return;
+      }
       if (!file.type.startsWith("image/")) {
         addNotification("Please choose an image file.", "warning", 3000);
         return;
@@ -5129,13 +5282,19 @@
     document.getElementById("skinChoiceGrid")?.addEventListener("click", e => {
       const btn = e.target.closest("[data-skin-choice]");
       if (!btn) return;
-        if (!canChangeSkin()) {
-          addNotification("Skin changes are locked until a free period.", "warning", 3000);
-          return;
-        }
-        state.selectedSkin = SKIN_IDS.includes(btn.dataset.skinChoice) ? btn.dataset.skinChoice : "default";
-        state.skinsVisible = true;
-        saveState(); renderAll();
+      const skinId = btn.dataset.skinChoice;
+      if (!isSkinUnlocked(skinId)) {
+        const rule = SKIN_UNLOCK_RULES[skinId];
+        addNotification(rule?.label || "That skin is still locked.", "warning", 3000);
+        return;
+      }
+      if (!canChangeSkin()) {
+        addNotification("Cosmetics open outside active class periods.", "warning", 3000);
+        return;
+      }
+      state.selectedSkin = SKIN_IDS.includes(skinId) ? skinId : "default";
+      state.skinsVisible = true;
+      saveState(); renderAll();
     });
 
     document.getElementById("exportWorkspaceBtn")?.addEventListener("click", exportWorkspace);
@@ -5186,7 +5345,7 @@
         return;
       }
       if (!typing && e.altKey && /^[1-6]$/.test(e.key)) {
-        const pages = ["dashboard", "tasks", "timer", "calendar", "settings", "contact"];
+        const pages = ["dashboard", "tasks", "timer", "calendar", "cosmetics", "settings", "contact"];
         navigate(pages[Number(e.key) - 1]);
       }
     });

@@ -298,8 +298,19 @@ async function mergeSourcePayload(source, payload, sender = null) {
     };
   }
   await chrome.storage.local.set(update);
+  if (safeSource === "canvas" && ["card", "list"].includes(payload?.canvasDashboardView) && !sender?.scrapeConfig?.canvasListRefresh) {
+    await chrome.storage.local.set({
+      canvasDashboardViewPreference: payload.canvasDashboardView,
+      canvasDashboardViewPreferenceAt: new Date().toISOString()
+    });
+  }
   if (safeSource === "canvas" && payload?.canvasDashboardView === "card") {
-    runCanvasCardModeListRefresh(sender?.tab?.url || "", { restoreCardView: true, sourceTabId: sender?.tab?.id || null }).catch(() => {});
+    runCanvasCardModeListRefresh(sender?.tab?.url || "", {
+      ...sender?.scrapeConfig,
+      restoreDashboardView: true,
+      originalDashboardView: payload.canvasDashboardView,
+      sourceTabId: sender?.tab?.id || null
+    }).catch(() => {});
   }
   if (safeSource === "teamsnap") {
     await chrome.storage.local.set({
@@ -509,12 +520,15 @@ function canvasDashboardUrlFrom(url, config = {}) {
 }
 
 async function runCanvasCardModeListRefresh(sourceUrl, config = {}) {
-  const data = await chrome.storage.local.get(["canvasCardListRefreshInFlight", "canvasCardListRefreshAt"]);
+  const data = await chrome.storage.local.get(["canvasCardListRefreshInFlight", "canvasCardListRefreshAt", "canvasDashboardViewPreference"]);
   if (data.canvasCardListRefreshInFlight) return;
   const lastRefresh = data.canvasCardListRefreshAt ? new Date(data.canvasCardListRefreshAt).getTime() : 0;
   if (Number.isFinite(lastRefresh) && Date.now() - lastRefresh < CANVAS_CARD_LIST_REFRESH_MS) return;
 
   let createdTab = null;
+  const restoreView = ["card", "list"].includes(config.originalDashboardView)
+    ? config.originalDashboardView
+    : (["card", "list"].includes(data.canvasDashboardViewPreference) ? data.canvasDashboardViewPreference : "card");
   await chrome.storage.local.set({ canvasCardListRefreshInFlight: true });
   try {
     createdTab = await chrome.tabs.create({ url: canvasDashboardUrlFrom(sourceUrl, config), active: false });
@@ -526,18 +540,35 @@ async function runCanvasCardModeListRefresh(sourceUrl, config = {}) {
     await chrome.storage.local.set({ canvasCardListRefreshAt: new Date().toISOString() });
     const cache = await getCache();
     await broadcastToEpstudy(cache);
-    if (config.restoreCardView) {
-      await sendCanvasDashboardViewMessage(await chrome.tabs.get(createdTab.id), "card").catch(() => {});
-      if (config.sourceTabId && config.sourceTabId !== createdTab.id) {
-        const sourceTab = await chrome.tabs.get(config.sourceTabId).catch(() => null);
-        if (sourceTab) await sendCanvasDashboardViewMessage(sourceTab, "card").catch(() => {});
-      }
-    }
   } catch {
     // The normal card-view scrape remains available; retry after the cooldown window.
   } finally {
     await chrome.storage.local.set({ canvasCardListRefreshInFlight: false });
     if (createdTab?.id) chrome.tabs.remove(createdTab.id).catch(() => {});
+    if (config.restoreDashboardView) {
+      if (config.sourceTabId) {
+        const sourceTab = await chrome.tabs.get(config.sourceTabId).catch(() => null);
+        if (sourceTab) await sendCanvasDashboardViewMessage(sourceTab, restoreView).catch(() => {});
+      }
+      await restoreCanvasDashboardViewPreference(sourceUrl, config, restoreView).catch(() => {});
+    }
+  }
+}
+
+async function restoreCanvasDashboardViewPreference(sourceUrl, config = {}, view = "card") {
+  const targetView = String(view || "").toLowerCase() === "list" ? "list" : "card";
+  let restoreTab = null;
+  try {
+    restoreTab = await chrome.tabs.create({ url: canvasDashboardUrlFrom(sourceUrl, config), active: false });
+    await waitForTabLoad(restoreTab.id, 15000);
+    await sendCanvasDashboardViewMessage(await chrome.tabs.get(restoreTab.id), targetView);
+    await waitForTabLoad(restoreTab.id, 3000).catch(() => {});
+    await chrome.storage.local.set({
+      canvasDashboardViewPreference: targetView,
+      canvasDashboardViewPreferenceAt: new Date().toISOString()
+    });
+  } finally {
+    if (restoreTab?.id) chrome.tabs.remove(restoreTab.id).catch(() => {});
   }
 }
 
@@ -659,11 +690,11 @@ async function askTabToScrape(tab, config) {
   }
   try {
     const response = await chrome.tabs.sendMessage(tab.id, { type: "EPSTUDY_SCRAPE_NOW", config });
-    if (response?.payload?.source) await mergeSourcePayload(response.payload.source, response.payload, { tab });
+    if (response?.payload?.source) await mergeSourcePayload(response.payload.source, response.payload, { tab, scrapeConfig: config });
   } catch {
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["source-scraper.js"] });
     const response = await chrome.tabs.sendMessage(tab.id, { type: "EPSTUDY_SCRAPE_NOW", config });
-    if (response?.payload?.source) await mergeSourcePayload(response.payload.source, response.payload, { tab });
+    if (response?.payload?.source) await mergeSourcePayload(response.payload.source, response.payload, { tab, scrapeConfig: config });
   }
 }
 
