@@ -124,12 +124,11 @@ function cleanCanvasCourseName(value) {
 }
 
 function hasBlockedCanvasCourseKeyword(value) {
-  const label = String(value || "").replace(/\s+/g, " ").trim();
-  return /\b(course analytics|view course stream)\b/i.test(label) || /^(assignments?|files?)$/i.test(label);
+  return /\b(assignments?|files?)\b/i.test(String(value || ""));
 }
 
 function isCanvasNavigationLabel(label) {
-  return /^(announcements?|assignments?|assignment groups?|calendar|chat|collaborations?|conferences?|course analytics|course details?|dashboard|discussions?|files?|grades?|help|history|home|inbox|modules?|outcomes?|pages?|people|quizzes?|rubrics?|settings|syllabus|to do|recent feedback|show all|view course stream|courses?|all courses?)$/i.test(String(label || "").trim());
+  return /^(announcements?|assignments?|assignment groups?|calendar|chat|collaborations?|conferences?|course details?|dashboard|discussions?|files?|grades?|help|history|home|inbox|modules?|outcomes?|pages?|people|quizzes?|rubrics?|settings|syllabus|to do|recent feedback|show all|courses?|all courses?)$/i.test(String(label || "").trim());
 }
 
 function canvasCourseIdFromCourseHomeHref(href) {
@@ -153,31 +152,15 @@ async function ensureCoursesForCanvasTasks(tasks, courses) {
     .filter(courseId => /^\d+$/.test(courseId) && !knownCourseIds.has(courseId))))
     .slice(0, 50);
 
-  const fetchedCourses = await Promise.all(missingCourseIds.map(courseId => {
+  for (const courseId of missingCourseIds) {
     const task = tasks.find(row => String(row?.courseId || "") === `canvas-course-${courseId}`);
-    return withTimeout(fetchCanvasCourseForTask(courseId, task), 2500, null);
-  }));
-
-  for (const course of fetchedCourses) {
-    if (!course || knownCourseIds.has(course.id)) continue;
+    const course = await fetchCanvasCourseForTask(courseId, task);
+    if (!course) continue;
     resolvedCourses.push(course);
     knownCourseIds.add(course.id);
   }
 
   return dedupeCourses(resolvedCourses);
-}
-
-function withTimeout(promise, timeoutMs, fallback) {
-  return Promise.race([
-    promise,
-    new Promise(resolve => setTimeout(() => resolve(fallback), timeoutMs))
-  ]);
-}
-
-function isVisibleCanvasElement(element) {
-  const rect = element?.getBoundingClientRect?.();
-  const style = window.getComputedStyle?.(element);
-  return Boolean(rect && rect.width > 0 && rect.height > 0 && style?.display !== "none" && style?.visibility !== "hidden");
 }
 
 async function fetchCanvasCourseForTask(courseIdRaw, task) {
@@ -406,7 +389,6 @@ async function normalizeCanvasApiTask(item) {
     estimatedMinutes: 30,
     source: "canvas",
     courseId: courseIdRaw ? `canvas-course-${courseIdRaw}` : undefined,
-    courseName: cleanCanvasCourseName(assignment?.context_name || item?.context_name || item?.course_name || ""),
     externalKey: `canvas:${courseIdRaw || "x"}:${assignmentId}`,
     canvasUrl: assignment?.html_url || item?.html_url || item?.url || "",
     completed: Boolean(submission.completed || item?.submitted || item?.completed || item?.workflow_state === "completed"),
@@ -453,7 +435,6 @@ async function normalizeCanvasAssignment(row, courseIdOverride = "") {
     estimatedMinutes: Math.max(10, Math.min(180, Number(row?.points_possible) ? Math.round(Number(row.points_possible) * 1.5) : 30)),
     source: "canvas",
     courseId: courseIdRaw ? `canvas-course-${courseIdRaw}` : undefined,
-    courseName: cleanCanvasCourseName(row?.context_name || row?.course_name || ""),
     externalKey: `canvas:${courseIdRaw || "x"}:${assignmentId}`,
     canvasUrl: row?.html_url || "",
     completed: Boolean(submission.completed),
@@ -568,10 +549,8 @@ function detectCanvasDashboardView() {
   ));
   if (/\bcard view\b/i.test(activeViewText)) return "card";
   if (/\blist view\b/i.test(activeViewText)) return "list";
-  const visibleCards = Array.from(document.querySelectorAll(".ic-DashboardCard, [class*='DashboardCard'], [data-testid*='dashboard-card']"));
-  if (visibleCards.some(isVisibleCanvasElement)) return "card";
-  const visibleListItems = Array.from(document.querySelectorAll(".planner-item, [class*='PlannerItem'], [class*='PlannerEmpty'], [class*='planner']"));
-  if (visibleListItems.some(isVisibleCanvasElement)) return "list";
+  if (document.querySelector(".ic-DashboardCard, [class*='DashboardCard'], [data-testid*='dashboard-card']")) return "card";
+  if (document.querySelector(".planner-item, [class*='PlannerItem'], [class*='PlannerEmpty'], [class*='planner']")) return "list";
   return "unknown";
 }
 
@@ -594,7 +573,6 @@ function canvasTaskFromNode(node) {
   const date = parseDate(timeNode?.getAttribute?.("datetime")) || parseDateFromText(text(timeNode) || text(node));
   if (!date) return null;
   const assignmentId = assignmentMatch?.[1] || stableId("canvas", title, date);
-  const courseName = canvasCourseNameFromTaskNode(node, courseIdRaw, title);
   return {
     id: courseIdRaw ? `canvas-${courseIdRaw}-${assignmentId}` : stableId("canvas", title, date),
     title,
@@ -602,35 +580,9 @@ function canvasTaskFromNode(node) {
     estimatedMinutes: 30,
     source: "canvas",
     courseId: courseIdRaw ? `canvas-course-${courseIdRaw}` : undefined,
-    courseName,
     externalKey: courseIdRaw && assignmentMatch ? `canvas:${courseIdRaw}:${assignmentId}` : stableId("canvas", title, date),
     canvasUrl: href || ""
   };
-}
-
-function canvasCourseNameFromTaskNode(node, courseIdRaw, title) {
-  const courseId = String(courseIdRaw || "").trim();
-  const exactLink = Array.from(node?.querySelectorAll?.(`a[href*="/courses/${courseId}"]`) || [])
-    .find(link => canvasCourseIdFromCourseHomeHref(link.getAttribute?.("href") || "") === courseId);
-  const linked = cleanCanvasCourseName(text(exactLink?.querySelector?.(".ellipsible")) || text(exactLink));
-  if (isLikelyCanvasVisibleCourseName(linked, title)) return linked;
-
-  const candidates = Array.from(node?.querySelectorAll?.("span, div, p") || [])
-    .map(candidate => cleanCanvasCourseName(text(candidate)))
-    .filter(label => label && label.toLowerCase() !== String(title || "").toLowerCase());
-  return candidates.find(label => isLikelyCanvasVisibleCourseName(label, title)) || "";
-}
-
-function isLikelyCanvasVisibleCourseName(label, title) {
-  const clean = String(label || "").trim();
-  if (!clean || clean.length < 2 || clean.length > 120) return false;
-  if (clean.toLowerCase() === String(title || "").toLowerCase()) return false;
-  if (hasBlockedCanvasCourseKeyword(clean) || isCanvasNavigationLabel(clean)) return false;
-  if (clean.includes(":")) return false;
-  if (/^(hw|cw|qa|ma)\b\s*[-:]/i.test(clean)) return false;
-  if (/\b\d+\s*pts?\b|\bdue\b|\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\b/i.test(clean)) return false;
-  if (/\b(chapter\s*\d+|quiz|project|poem|worksheet|homework|classwork)\b/i.test(clean)) return false;
-  return true;
 }
 
 function taskContainerForAssignmentLink(link) {
@@ -681,11 +633,11 @@ function scrapeCanvasDashboardCardTasks() {
 }
 
 async function scrapeCanvasTasks() {
+  const apiRows = await scrapeCanvasApiTasks();
   const visibleRows = detectCanvasDashboardView() === "card"
     ? scrapeCanvasDashboardCardTasks()
     : [...scrapeCanvasAssignmentLinkTasks(), ...scrapeVisibleCanvasTasks(), ...scrapeCanvasDashboardCardTasks()];
-  const apiRows = await withTimeout(scrapeCanvasApiTasks(), 4500, []);
-  return dedupe([...visibleRows, ...apiRows]);
+  return dedupe([...apiRows, ...visibleRows]);
 }
 
 function getTeamSnapPageMeta() {
