@@ -208,6 +208,24 @@
     return window.location.protocol === "file:" || window.location.origin === "null" ? "*" : window.location.origin;
   }
 
+  const extensionSyncButtonLabels = {};
+  let extensionSyncFallbackTimer = null;
+
+  function setExtensionSyncing(active) {
+    ["syncBtn", "extensionSyncBtn", "quickSyncBtn"].forEach(id => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      if (!extensionSyncButtonLabels[id]) extensionSyncButtonLabels[id] = btn.textContent || "Sync";
+      btn.disabled = Boolean(active);
+      btn.textContent = active ? "..." : extensionSyncButtonLabels[id];
+      btn.style.opacity = active ? "0.55" : "";
+      btn.style.filter = active ? "grayscale(0.45)" : "";
+      btn.style.cursor = active ? "wait" : "";
+    });
+    if (extensionSyncFallbackTimer) window.clearTimeout(extensionSyncFallbackTimer);
+    extensionSyncFallbackTimer = active ? window.setTimeout(() => setExtensionSyncing(false), 15000) : null;
+  }
+
   function publishVersion(source = "init") {
     try { localStorage.setItem(VERSION_STORAGE_KEY, EPSTUDY_APP_VERSION); } catch {}
     window.postMessage({ type: "EPSTUDY_VERSION_SELECTED", version: EPSTUDY_APP_VERSION, source }, bridgeTargetOrigin());
@@ -530,14 +548,13 @@
   }
 
   function mergedTaskCompleted(existingTask, incomingTask) {
-    if (isCanvasForceIncompleteTask(existingTask) || isCanvasForceIncompleteTask(incomingTask)) return false;
+    if (isCanvasForceIncompleteTask(incomingTask)) return false;
     return Boolean(existingTask?.completed || incomingTask?.completed);
   }
 
   function requestExtensionSync() {
-    document.getElementById("syncBtn").textContent = "Syncing";
+    setExtensionSyncing(true);
     window.postMessage({ type: "EPSTUDY_EXTENSION_REQUEST_SYNC", config: { membeanEnabled: true } }, bridgeTargetOrigin());
-    window.setTimeout(() => { document.getElementById("syncBtn").textContent = "Sync"; }, 1200);
   }
 
   function upsertCanvasCourses(courses) {
@@ -729,8 +746,14 @@
     document.getElementById("timerDone").addEventListener("click", completeTimer);
     window.addEventListener("message", event => {
       if (event.source !== window || !event.data) return;
-      if (event.data.type === "EPSTUDY_EXTENSION_SYNC") handleExtensionPayload(event.data.payload || {});
-      if (event.data.type === "EPSTUDY_EXTENSION_STATUS") document.getElementById("timerStatus").textContent = event.data.message || "";
+      if (event.data.type === "EPSTUDY_EXTENSION_SYNC") {
+        setExtensionSyncing(false);
+        handleExtensionPayload(event.data.payload || {});
+      }
+      if (event.data.type === "EPSTUDY_EXTENSION_STATUS") {
+        setExtensionSyncing(false);
+        document.getElementById("timerStatus").textContent = event.data.message || "";
+      }
     });
   }
 

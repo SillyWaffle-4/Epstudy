@@ -632,7 +632,7 @@
       </div>
     </div>
     <div class="actions">
-      <label class="version-switcher" for="epstudyVersionSelect"><span>Version</span><select id="epstudyVersionSelect" aria-label="Switch EPStudy version" onchange="switchEpstudyVersion(this.value)"><option value="v2">V2</option><option value="v3">V3</option><option value="simple">Simple</option></select></label>
+      <label class="version-switcher" for="epstudyVersionSelect"><span>Version</span><select id="epstudyVersionSelect" aria-label="Switch EPStudy version" onchange="switchEpstudyVersion(this.value)"><option value="v2">V2</option><option value="v3">V3</option><option value="v4">V4</option><option value="simple">Simple</option></select></label>
       <button id="quickSyncBtn" class="button primary" type="button">Sync</button>
       <button id="clearDoneBtn" class="button" type="button">Clear Done</button>
       <button id="tutorialBtn" class="button primary" type="button">Guide</button>
@@ -1569,6 +1569,9 @@
       focusBlockerEnabled: true,
       ambientFocusMode: false,
       smartDismissedTaskIds: [],
+      ignoredTaskKeys: [],
+      foreverIgnoredTaskKeys: [],
+      hideIgnoreForeverConfirm: false,
       blockedSites: ["youtube.com", "music.youtube.com", "spotify.com", "poki.com", "crazygames.com"],
       liveSchedule: null,
       epsSchedules: {},
@@ -1674,6 +1677,9 @@
       merged.schoolDivision = ["us", "ms"].includes(merged.schoolDivision) ? merged.schoolDivision : "us";
       merged.calendarDay = Math.max(1, Math.min(31, Number(merged.calendarDay) || base.calendarDay));
       merged.smartDismissedTaskIds = Array.isArray(merged.smartDismissedTaskIds) ? merged.smartDismissedTaskIds.map(String) : [];
+      merged.ignoredTaskKeys = Array.isArray(merged.ignoredTaskKeys) ? Array.from(new Set(merged.ignoredTaskKeys.map(String).filter(Boolean))).slice(-1000) : [];
+      merged.foreverIgnoredTaskKeys = Array.isArray(merged.foreverIgnoredTaskKeys) ? Array.from(new Set(merged.foreverIgnoredTaskKeys.map(String).filter(Boolean))).slice(-2000) : [];
+      merged.hideIgnoreForeverConfirm = Boolean(merged.hideIgnoreForeverConfirm);
       merged.ambientFocusMode = Boolean(merged.ambientFocusMode);
       merged.focusBlockerEnabled = typeof merged.focusBlockerEnabled === "boolean" ? merged.focusBlockerEnabled : base.focusBlockerEnabled;
       merged.blockedSites = Array.isArray(merged.blockedSites) && merged.blockedSites.length ? merged.blockedSites : base.blockedSites.slice();
@@ -1768,9 +1774,9 @@
   }
 
   function epstudyVersionHref(version) {
-    const target = ["v2", "v3", "simple"].includes(version) ? version : "v3";
+    const target = ["v2", "v3", "v4", "simple"].includes(version) ? version : "v3";
     const suffix = `${window.location.search || ""}${window.location.hash || ""}`;
-    if (/\/versions\/(?:v[23]|simple)\/(?:index\.html)?$/i.test(window.location.pathname)) return `../${target}/index.html${suffix}`;
+    if (/\/versions\/(?:v[234]|simple)\/(?:index\.html)?$/i.test(window.location.pathname)) return `../${target}/index.html${suffix}`;
     return `versions/${target}/index.html${suffix}`;
   }
 
@@ -1780,7 +1786,7 @@
   }
 
   function switchEpstudyVersion(nextVersion) {
-    const next = ["v2", "v3", "simple"].includes(nextVersion) ? nextVersion : "v3";
+    const next = ["v2", "v3", "v4", "simple"].includes(nextVersion) ? nextVersion : "v3";
     if (next === EPSTUDY_APP_VERSION) return;
     saveState();
     try { localStorage.setItem(VERSION_STORAGE_KEY, next); } catch {}
@@ -1889,9 +1895,13 @@
 
   window.addEventListener("message", (event) => {
     if (event.source !== window || !event.data || typeof event.data !== "object") return;
-    if (event.data.type === "EPSTUDY_EXTENSION_SYNC") handleExtensionPayload(event.data.payload || {});
+    if (event.data.type === "EPSTUDY_EXTENSION_SYNC") {
+      setExtensionSyncing(false);
+      handleExtensionPayload(event.data.payload || {});
+    }
     if (event.data.type === "EPSTUDY_RESET_ALL_DONE") location.reload();
     if (event.data.type === "EPSTUDY_EXTENSION_STATUS") {
+      setExtensionSyncing(false);
       const status = document.getElementById("extensionSyncStatus");
       if (status) status.textContent = String(event.data.message || "Extension is connected.");
       state.extensionSync.statusMessage = String(event.data.message || "Extension is connected.");
@@ -1913,12 +1923,30 @@
     return window.location.protocol === "file:" || window.location.origin === "null" ? "*" : window.location.origin;
   }
 
+  const extensionSyncButtonLabels = {};
+  let extensionSyncFallbackTimer = null;
+
+  function setExtensionSyncing(active) {
+    ["extensionSyncBtn", "quickSyncBtn", "syncBtn"].forEach(id => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      if (!extensionSyncButtonLabels[id]) extensionSyncButtonLabels[id] = btn.textContent || "Sync";
+      btn.disabled = Boolean(active);
+      btn.textContent = active ? "..." : extensionSyncButtonLabels[id];
+      btn.style.opacity = active ? "0.55" : "";
+      btn.style.filter = active ? "grayscale(0.45)" : "";
+      btn.style.cursor = active ? "wait" : "";
+    });
+    if (extensionSyncFallbackTimer) window.clearTimeout(extensionSyncFallbackTimer);
+    extensionSyncFallbackTimer = active ? window.setTimeout(() => setExtensionSyncing(false), 15000) : null;
+  }
+
   function isCanvasForceIncompleteTask(task) {
     return Boolean(task?.canvasForceIncomplete || task?.forceIncomplete || task?.completionLockedIncomplete);
   }
 
   function mergedTaskCompleted(existingTask, incomingTask, source) {
-    if (isCanvasForceIncompleteTask(existingTask) || isCanvasForceIncompleteTask(incomingTask)) return false;
+    if (isCanvasForceIncompleteTask(incomingTask)) return false;
     return Boolean(existingTask?.completed || incomingTask?.completed);
   }
 
@@ -1927,9 +1955,82 @@
     window.postMessage({ type: "EPSTUDY_WEBSITE_TASKS", tasks, updatedAt: new Date().toISOString(), websiteVersion: EPSTUDY_APP_VERSION }, bridgeTargetOrigin());
   }
 
+  function taskIgnoreKeys(task) {
+    const keys = new Set();
+    if (!task) return [];
+    if (task.externalKey) keys.add(`external:${task.externalKey}`);
+    if (task.id) keys.add(`id:${task.id}`);
+    const assignmentId = canvasAssignmentId(task);
+    if (assignmentId) keys.add(`canvas-assignment:${assignmentId}`);
+    taskDedupeAliases(task).forEach(alias => keys.add(`alias:${alias}`));
+    return Array.from(keys).filter(Boolean);
+  }
+
+  function hasAnyTaskIgnoreKey(task, keyList) {
+    const stored = new Set(Array.isArray(keyList) ? keyList.map(String) : []);
+    return taskIgnoreKeys(task).some(key => stored.has(key));
+  }
+
+  function isNormallyIgnoredTask(task) {
+    return hasAnyTaskIgnoreKey(task, state.ignoredTaskKeys);
+  }
+
+  function isForeverIgnoredTask(task) {
+    return hasAnyTaskIgnoreKey(task, state.foreverIgnoredTaskKeys);
+  }
+
+  function shouldSkipImportedTask(task) {
+    if (isForeverIgnoredTask(task)) return true;
+    return isNormallyIgnoredTask(task) && !isCanvasForceIncompleteTask(task);
+  }
+
+  function rememberIgnoredTask(task, forever = false) {
+    const keys = taskIgnoreKeys(task);
+    if (!keys.length) return;
+    const target = forever ? "foreverIgnoredTaskKeys" : "ignoredTaskKeys";
+    const limit = forever ? 2000 : 1000;
+    state[target] = Array.from(new Set([...(state[target] || []), ...keys])).slice(-limit);
+    if (forever) {
+      const foreverKeys = new Set(state.foreverIgnoredTaskKeys || []);
+      state.ignoredTaskKeys = (state.ignoredTaskKeys || []).filter(key => !foreverKeys.has(key));
+    }
+  }
+
+  function showIgnoreForeverConfirm(task) {
+    if (state.hideIgnoreForeverConfirm) return Promise.resolve(true);
+    return new Promise(resolve => {
+      const overlay = document.createElement("div");
+      overlay.className = "modal-backdrop open";
+      overlay.setAttribute("aria-hidden", "false");
+      overlay.innerHTML = `
+        <div class="modal-card" style="max-width: 460px;">
+          <h2>Ignore Forever?</h2>
+          <p class="mini-text">This will permanently hide <strong>${escapeHtml(task?.title || "this task")}</strong>. Sync will never bring it back.</p>
+          <label class="row" style="justify-content:flex-start; gap:8px; margin-top:14px;">
+            <input type="checkbox" data-ignore-skip />
+            <span>Do not show this again</span>
+          </label>
+          <div class="row" style="justify-content:flex-end; margin-top:18px;">
+            <button class="button" type="button" data-ignore-cancel>Cancel</button>
+            <button class="button danger" type="button" data-ignore-confirm>Ignore Forever</button>
+          </div>
+        </div>`;
+      document.body.appendChild(overlay);
+      const close = (ok) => {
+        if (ok && overlay.querySelector("[data-ignore-skip]")?.checked) state.hideIgnoreForeverConfirm = true;
+        overlay.remove();
+        resolve(ok);
+      };
+      overlay.querySelector("[data-ignore-cancel]")?.addEventListener("click", () => close(false));
+      overlay.querySelector("[data-ignore-confirm]")?.addEventListener("click", () => close(true));
+      overlay.addEventListener("click", event => { if (event.target === overlay) close(false); });
+    });
+  }
+
   function requestExtensionSync(statusMessage = "Requesting fresh data from the extension...") {
     const status = document.getElementById("extensionSyncStatus");
     if (status) status.textContent = statusMessage;
+    setExtensionSyncing(true);
     window.postMessage({ type: "EPSTUDY_EXTENSION_REQUEST_SYNC", config: { canvasDomain: getCanvasConfig().domain, membeanEnabled: Boolean(state.membeanEnabled) } }, bridgeTargetOrigin());
   }
 
@@ -3288,8 +3389,9 @@
           ${isCanvas ? `<button class="button" data-action="info" data-id="${t.id}" type="button">More Info</button>` : ""}
           ${hasComment ? `<button class="button" data-action="comment" data-id="${t.id}" type="button">Read Comment</button>` : ""}
           <button class="button" data-action="load-timer" data-id="${t.id}" type="button">Load in Timer</button>
+          <button class="button" data-action="ignore-forever" data-id="${t.id}" type="button">Ignore Forever</button>
           <button class="icon-button" data-action="toggle" data-id="${t.id}" title="Toggle Done">${t.completed ? "↺" : "✓"}</button>
-          <button class="icon-button" style="color:var(--danger)" data-action="delete" data-id="${t.id}" title="Delete">✕</button>
+          <button class="icon-button" style="color:var(--danger)" data-action="delete" data-id="${t.id}" title="Ignore">✕</button>
         </div>
       </div>`;
     }).join("");
@@ -4209,7 +4311,8 @@
     removeTasksWithoutRealCourse(false);
     const normalized = dedupeIncomingTasks((Array.isArray(incomingTasks) ? incomingTasks : [])
       .map(task => normalizeIncomingTask(task, source))
-      .filter(Boolean));
+      .filter(Boolean))
+      .filter(task => !shouldSkipImportedTask(task));
     let added = 0, updated = 0;
     const existingByKey = new Map();
     state.tasks.forEach((task, index) => {
@@ -4817,7 +4920,27 @@
       const btn = e.target.closest("button"); if (!btn) return;
       const act = btn.dataset.action, id = btn.dataset.id;
       if (act === "load-timer" || act === "select") { loadTaskInTimer(id); return; }
-      if (act === "delete") { state.tasks = state.tasks.filter(t => t.id !== id); state.smartDismissedTaskIds = state.smartDismissedTaskIds.filter(x => x !== id); if(state.selectedTaskId===id) state.selectedTaskId=null; saveState(); renderAll(); }
+      if (act === "delete") {
+        const t = state.tasks.find(x => x.id === id);
+        if (t) rememberIgnoredTask(t, false);
+        state.tasks = state.tasks.filter(t => t.id !== id);
+        state.smartDismissedTaskIds = state.smartDismissedTaskIds.filter(x => x !== id);
+        if(state.selectedTaskId===id) state.selectedTaskId=null;
+        saveState(); publishWebsiteTasksToExtension(); renderAll();
+      }
+      if (act === "ignore-forever") {
+        const t = state.tasks.find(x => x.id === id);
+        if (!t) return;
+        showIgnoreForeverConfirm(t).then(ok => {
+          if (!ok) return;
+          rememberIgnoredTask(t, true);
+          state.tasks = state.tasks.filter(task => task.id !== id);
+          state.smartDismissedTaskIds = state.smartDismissedTaskIds.filter(x => x !== id);
+          if(state.selectedTaskId===id) state.selectedTaskId=null;
+          addNotification(`Ignored forever: ${t.title}`, "info", 4500);
+          saveState(); publishWebsiteTasksToExtension(); renderAll();
+        });
+      }
       if (act === "toggle") { const t=state.tasks.find(x=>x.id===id); if(t) { if (isCanvasForceIncompleteTask(t)) { t.completed = false; addNotification(t.forceIncompleteReason || "Canvas says this assignment is not complete yet.", "warning", 5000); } else { t.completed=!t.completed; t.completedAt = t.completed ? new Date().toISOString() : ""; if(t.completed) { state.smartDismissedTaskIds = state.smartDismissedTaskIds.filter(x => x !== id); emitConfetti(28); } } } saveState(); publishWebsiteTasksToExtension(); renderAll(); }
       if (act === "comment") {
         const t = state.tasks.find(x => x.id === id);

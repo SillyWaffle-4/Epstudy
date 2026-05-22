@@ -643,14 +643,13 @@ function canvasSubmissionGradeMeta(submission = {}) {
   const pointsPossible = Number(submission?.assignment?.points_possible ?? submission?.points_possible);
   const hasScore = rawScore !== null && rawScore !== undefined && rawScore !== "" && Number.isFinite(score);
   const hasPositivePossible = Number.isFinite(pointsPossible) ? pointsPossible > 0 : true;
-  const gradeSaysIncomplete = /\bincomplete\b|\bmissing\b|\bexcused\s*no\b/i.test(gradeLower);
-  const gradeSaysComplete = /\bcomplete\b/i.test(gradeLower) && !gradeSaysIncomplete;
+  const gradeSaysDash = /^[-–—]\s*(?:\/|$)/.test(gradeLower);
+  const gradeSaysComplete = /\bcomplete\b/i.test(gradeLower) && !/\bincomplete\b/i.test(gradeLower);
   const scoreSaysZero = hasScore && score === 0 && hasPositivePossible && Boolean(submission?.graded_at || grade || submission?.workflow_state === "graded" || submission?.missing);
-  const missing = Boolean(submission?.missing);
-  const forceIncomplete = Boolean(gradeSaysIncomplete || scoreSaysZero || missing);
+  const forceIncomplete = Boolean(scoreSaysZero || gradeSaysDash);
   return {
     forceIncomplete,
-    forceIncompleteReason: gradeSaysIncomplete ? "Canvas grade is incomplete" : scoreSaysZero ? "Canvas grade is 0" : missing ? "Canvas marks this missing" : "",
+    forceIncompleteReason: scoreSaysZero ? "Canvas grade is 0" : gradeSaysDash ? "Canvas grade is -/points" : "",
     completedByGrade: Boolean(gradeSaysComplete || (hasScore && score > 0)),
     grade,
     score: hasScore ? score : null,

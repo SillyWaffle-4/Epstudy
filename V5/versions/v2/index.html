@@ -534,7 +534,7 @@
       </div>
     </div>
     <div class="actions">
-      <label class="version-switcher" for="epstudyVersionSelect"><span>Version</span><select id="epstudyVersionSelect" aria-label="Switch EPStudy version" onchange="switchEpstudyVersion(this.value)"><option value="v2">V2</option><option value="v3">V3</option><option value="simple">Simple</option></select></label>
+      <label class="version-switcher" for="epstudyVersionSelect"><span>Version</span><select id="epstudyVersionSelect" aria-label="Switch EPStudy version" onchange="switchEpstudyVersion(this.value)"><option value="v2">V2</option><option value="v3">V3</option><option value="v4">V4</option><option value="simple">Simple</option></select></label>
       <button id="minimalToggle" class="button" type="button">Minimalist: Off</button>
       <button id="clearDoneBtn" class="button" type="button">Clear Done</button>
       <button id="tutorialBtn" class="button primary" type="button">Guide</button>
@@ -1512,9 +1512,9 @@
   }
 
   function epstudyVersionHref(version) {
-    const target = ["v2", "v3", "simple"].includes(version) ? version : "v3";
+    const target = ["v2", "v3", "v4", "simple"].includes(version) ? version : "v3";
     const suffix = `${window.location.search || ""}${window.location.hash || ""}`;
-    if (/\/versions\/(?:v[23]|simple)\/(?:index\.html)?$/i.test(window.location.pathname)) return `../${target}/index.html${suffix}`;
+    if (/\/versions\/(?:v[234]|simple)\/(?:index\.html)?$/i.test(window.location.pathname)) return `../${target}/index.html${suffix}`;
     return `versions/${target}/index.html${suffix}`;
   }
 
@@ -1524,7 +1524,7 @@
   }
 
   function switchEpstudyVersion(nextVersion) {
-    const next = ["v2", "v3", "simple"].includes(nextVersion) ? nextVersion : "v3";
+    const next = ["v2", "v3", "v4", "simple"].includes(nextVersion) ? nextVersion : "v3";
     if (next === EPSTUDY_APP_VERSION) return;
     saveState();
     try { localStorage.setItem(VERSION_STORAGE_KEY, next); } catch {}
@@ -1623,9 +1623,13 @@
 
   window.addEventListener("message", (event) => {
     if (event.source !== window || !event.data || typeof event.data !== "object") return;
-    if (event.data.type === "EPSTUDY_EXTENSION_SYNC") handleExtensionPayload(event.data.payload || {});
+    if (event.data.type === "EPSTUDY_EXTENSION_SYNC") {
+      setExtensionSyncing(false);
+      handleExtensionPayload(event.data.payload || {});
+    }
     if (event.data.type === "EPSTUDY_RESET_ALL_DONE") location.reload();
     if (event.data.type === "EPSTUDY_EXTENSION_STATUS") {
+      setExtensionSyncing(false);
       const status = document.getElementById("extensionSyncStatus");
       if (status) status.textContent = String(event.data.message || "Extension is connected.");
     }
@@ -1635,12 +1639,30 @@
     return window.location.protocol === "file:" || window.location.origin === "null" ? "*" : window.location.origin;
   }
 
+  const extensionSyncButtonLabels = {};
+  let extensionSyncFallbackTimer = null;
+
+  function setExtensionSyncing(active) {
+    ["extensionSyncBtn", "quickSyncBtn", "syncBtn"].forEach(id => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      if (!extensionSyncButtonLabels[id]) extensionSyncButtonLabels[id] = btn.textContent || "Sync";
+      btn.disabled = Boolean(active);
+      btn.textContent = active ? "..." : extensionSyncButtonLabels[id];
+      btn.style.opacity = active ? "0.55" : "";
+      btn.style.filter = active ? "grayscale(0.45)" : "";
+      btn.style.cursor = active ? "wait" : "";
+    });
+    if (extensionSyncFallbackTimer) window.clearTimeout(extensionSyncFallbackTimer);
+    extensionSyncFallbackTimer = active ? window.setTimeout(() => setExtensionSyncing(false), 15000) : null;
+  }
+
   function isCanvasForceIncompleteTask(task) {
     return Boolean(task?.canvasForceIncomplete || task?.forceIncomplete || task?.completionLockedIncomplete);
   }
 
   function mergedTaskCompleted(existingTask, incomingTask, source) {
-    if (isCanvasForceIncompleteTask(existingTask) || isCanvasForceIncompleteTask(incomingTask)) return false;
+    if (isCanvasForceIncompleteTask(incomingTask)) return false;
     return Boolean(existingTask?.completed || incomingTask?.completed);
   }
 
@@ -1652,6 +1674,7 @@
   function requestExtensionSync(statusMessage = "Requesting fresh data from the extension...") {
     const status = document.getElementById("extensionSyncStatus");
     if (status) status.textContent = statusMessage;
+    setExtensionSyncing(true);
     window.postMessage({ type: "EPSTUDY_EXTENSION_REQUEST_SYNC", config: { canvasDomain: getCanvasConfig().domain, membeanEnabled: Boolean(state.membeanEnabled) } }, bridgeTargetOrigin());
   }
 

@@ -172,7 +172,7 @@ function taskForceIncomplete(task) {
 }
 
 function mergeTaskCompletion(existing, incoming) {
-  if (taskForceIncomplete(existing) || taskForceIncomplete(incoming)) return false;
+  if (taskForceIncomplete(incoming)) return false;
   return Boolean(existing?.completed || incoming?.completed);
 }
 
