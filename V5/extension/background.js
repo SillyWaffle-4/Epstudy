@@ -101,7 +101,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       activeWebsiteVersion: websiteVersion,
       activeWebsiteVersionUpdatedAt: new Date().toISOString()
     })
-      .then(() => sendResponse({ ok: true }));
+      .then(getCache)
+      .then((cache) => broadcastToEpstudy(cache).then(() => sendResponse({ ok: true, payload: cache })))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
 
@@ -135,7 +137,7 @@ async function fetchTextForWebsite(url) {
 
 function normalizeWebsiteVersion(version) {
   const value = String(version || "").toLowerCase();
-  return ["v2", "v3", "simple"].includes(value) ? value : "v3";
+  return ["v2", "v3", "v4", "simple"].includes(value) ? value : "v3";
 }
 
 async function resetEpstudyData() {
@@ -153,16 +155,44 @@ async function resetEpstudyData() {
 }
 
 async function getCache() {
-  const data = await chrome.storage.local.get(["canvas", "teamsnap", "membean", "courses", "updatedAt", "sourceStatus", "teamSnapLinks"]);
+  const data = await chrome.storage.local.get(["canvas", "teamsnap", "membean", "courses", "updatedAt", "sourceStatus", "teamSnapLinks", "websiteTasks"]);
   return {
-    canvas: normalizeRows(data.canvas || [], "canvas"),
-    teamsnap: normalizeRows(data.teamsnap || [], "teamsnap"),
-    membean: data.membean || [],
+    canvas: mergeWebsiteCompletionIntoRows(normalizeRows(data.canvas || [], "canvas"), data.websiteTasks || [], "canvas"),
+    teamsnap: mergeWebsiteCompletionIntoRows(normalizeRows(data.teamsnap || [], "teamsnap"), data.websiteTasks || [], "teamsnap"),
+    membean: mergeWebsiteCompletionIntoRows(data.membean || [], data.websiteTasks || [], "membean"),
     courses: normalizeCanvasCourses(data.courses || []),
     teamSnapLinks: data.teamSnapLinks || [],
     updatedAt: data.updatedAt || null,
     sourceStatus: data.sourceStatus || {}
   };
+}
+
+function taskForceIncomplete(task) {
+  return Boolean(task?.canvasForceIncomplete || task?.forceIncomplete || task?.completionLockedIncomplete);
+}
+
+function mergeTaskCompletion(existing, incoming) {
+  if (taskForceIncomplete(existing) || taskForceIncomplete(incoming)) return false;
+  return Boolean(existing?.completed || incoming?.completed);
+}
+
+function mergeWebsiteCompletionIntoRows(rows, websiteTasks, source) {
+  const websiteRows = normalizeRows((Array.isArray(websiteTasks) ? websiteTasks : [])
+    .filter(task => String(task?.source || "").toLowerCase() === source), source);
+  if (!websiteRows.length) return rows;
+  const websiteByAlias = new Map();
+  for (const task of websiteRows) {
+    rowAliases(task, source).forEach(alias => websiteByAlias.set(alias, task));
+  }
+  return (Array.isArray(rows) ? rows : []).map(row => {
+    const websiteTask = rowAliases(row, source).map(alias => websiteByAlias.get(alias)).find(Boolean);
+    if (!websiteTask) return row;
+    return {
+      ...row,
+      completed: mergeTaskCompletion(row, websiteTask),
+      websiteCompletedAt: websiteTask.completed ? (websiteTask.completedAt || websiteTask.updatedAt || "") : (row.websiteCompletedAt || "")
+    };
+  });
 }
 
 async function getHealthSnapshot() {
@@ -259,7 +289,7 @@ async function mergeSourcePayload(source, payload, sender = null) {
   }
   const rows = normalizeRows(Array.isArray(payload?.tasks) ? payload.tasks : [], safeSource);
   const incomingCourses = normalizeCanvasCourses(payload?.courses || []);
-  const data = await chrome.storage.local.get(["canvas", "teamsnap", "courses", "sourceStatus"]);
+  const data = await chrome.storage.local.get(["canvas", "teamsnap", "membean", "courses", "sourceStatus"]);
   const sourceStatus = data.sourceStatus || {};
   const syncedAt = new Date().toISOString();
 
@@ -273,6 +303,22 @@ async function mergeSourcePayload(source, payload, sender = null) {
           attemptedAt: syncedAt,
           cachedTasks: Array.isArray(data.canvas) ? data.canvas.length : 0,
           cachedCourses: Array.isArray(data.courses) ? data.courses.length : 0
+        }
+      },
+      updatedAt: syncedAt
+    });
+    return;
+  }
+
+  if (safeSource === "membean" && rows.length === 0) {
+    await chrome.storage.local.set({
+      sourceStatus: {
+        ...sourceStatus,
+        membean: {
+          status: "waiting_for_progress",
+          message: "Membean was opened, but training progress could not be read. Keeping the last saved Membean data.",
+          attemptedAt: syncedAt,
+          cachedTasks: Array.isArray(data.membean) ? data.membean.length : 0
         }
       },
       updatedAt: syncedAt
@@ -326,6 +372,19 @@ async function mergeSourcePayload(source, payload, sender = null) {
     });
     await scheduleTeamSnapReminders(mergedTeamSnapRows);
     await notifyTeamSnapWithin48ForToday();
+  }
+  if (safeSource === "membean") {
+    await chrome.storage.local.set({
+      sourceStatus: {
+        ...sourceStatus,
+        membean: {
+          status: "synced",
+          message: "Membean progress saved.",
+          syncedAt,
+          cachedTasks: rows.length
+        }
+      }
+    });
   }
 }
 
@@ -500,12 +559,38 @@ async function syncAllSources(config = {}) {
   const tabs = await chrome.tabs.query({});
   await rememberOpenTeamSnapTabs(tabs);
   const hadCanvasTab = tabs.some((tab) => tab.url && sourceFromUrl(tab.url, config) === "canvas");
-  await Promise.allSettled(tabs.map((tab) => askTabToScrape(tab, config)));
+  await scrapeOpenSourceTabs(tabs, config, "canvas");
+  await scrapeOpenSourceTabs(tabs, config, "teamsnap");
+  await scrapeOpenSourceTabs(tabs, config, "membean");
   await scrapeRememberedTeamSnapLinks(tabs, config);
+  await scrapeMembeanProgress(tabs, config);
   if (!hadCanvasTab) await markCanvasWaitingForReadablePage("No Canvas tab is open. Keeping the last saved Canvas data.");
   const cache = await getCache();
   await broadcastToEpstudy(cache);
   return cache;
+}
+
+async function scrapeOpenSourceTabs(tabs, config, source) {
+  const sourceTabs = (tabs || []).filter(tab => sourceFromUrl(tab?.url || "", config) === source);
+  for (const tab of sourceTabs) {
+    await askTabToScrape(tab, config).catch(() => {});
+  }
+}
+
+async function scrapeMembeanProgress(openTabs, config = {}) {
+  if (!config.membeanEnabled) return;
+  const openMembeanTab = (openTabs || []).find(tab => sourceFromUrl(tab?.url || "", config) === "membean");
+  if (openMembeanTab) return;
+  let createdTab = null;
+  try {
+    createdTab = await chrome.tabs.create({ url: "https://membean.com/dashboard", active: false });
+    await waitForTabLoad(createdTab.id, 15000);
+    await askTabToScrape(await chrome.tabs.get(createdTab.id), config);
+  } catch {
+    await markMembeanWaitingForProgress("Membean could not be opened or read. Log in to Membean once, then sync again.").catch(() => {});
+  } finally {
+    if (createdTab?.id) chrome.tabs.remove(createdTab.id).catch(() => {});
+  }
 }
 
 function canvasDashboardUrlFrom(url, config = {}) {
@@ -745,6 +830,23 @@ async function markTeamSnapWaitingForSchedule(message) {
         message,
         attemptedAt,
         cachedTasks: Array.isArray(data.teamsnap) ? data.teamsnap.length : 0
+      }
+    },
+    updatedAt: attemptedAt
+  });
+}
+
+async function markMembeanWaitingForProgress(message) {
+  const data = await chrome.storage.local.get(["membean", "sourceStatus"]);
+  const attemptedAt = new Date().toISOString();
+  await chrome.storage.local.set({
+    sourceStatus: {
+      ...(data.sourceStatus || {}),
+      membean: {
+        status: "waiting_for_progress",
+        message,
+        attemptedAt,
+        cachedTasks: Array.isArray(data.membean) ? data.membean.length : 0
       }
     },
     updatedAt: attemptedAt

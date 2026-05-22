@@ -589,7 +589,12 @@ async function normalizeCanvasApiTask(item) {
     courseId: courseIdRaw ? `canvas-course-${courseIdRaw}` : undefined,
     externalKey: `canvas:${courseIdRaw || "x"}:${assignmentId}`,
     canvasUrl: absoluteCanvasUrl(assignment?.html_url || item?.html_url || item?.url || `/courses/${courseIdRaw}/assignments/${assignmentId}`),
-    completed: Boolean(submission.completed || item?.submitted || item?.completed || item?.workflow_state === "completed"),
+    completed: submission.forceIncomplete ? false : Boolean(submission.completed || item?.submitted || item?.completed || item?.workflow_state === "completed"),
+    canvasForceIncomplete: Boolean(submission.forceIncomplete),
+    forceIncompleteReason: submission.forceIncompleteReason || "",
+    canvasGrade: submission.grade || "",
+    canvasScore: submission.score,
+    canvasPointsPossible: submission.pointsPossible,
     submissionState: submission.submissionState || item?.workflow_state || "",
     comments: submission.comments || [],
     comment: submission.comment || ""
@@ -606,9 +611,21 @@ async function fetchSubmissionStatus(courseIdRaw, assignmentId) {
     const comments = Array.isArray(submission?.submission_comments)
       ? submission.submission_comments.map(c => ({ author: c.author_name || c.author?.display_name || "Canvas", comment: String(c.comment || "").trim(), createdAt: c.created_at || "" })).filter(c => c.comment)
       : [];
-    const submitted = Boolean(submission?.submitted_at || submission?.workflow_state === "submitted" || submission?.attempt);
+    const gradeMeta = canvasSubmissionGradeMeta(submission);
+    const submitted = Boolean(
+      submission?.submitted_at ||
+      submission?.workflow_state === "submitted" ||
+      submission?.workflow_state === "graded" ||
+      submission?.attempt ||
+      gradeMeta.completedByGrade
+    );
     return {
-      completed: submitted,
+      completed: gradeMeta.forceIncomplete ? false : submitted,
+      forceIncomplete: gradeMeta.forceIncomplete,
+      forceIncompleteReason: gradeMeta.forceIncompleteReason,
+      grade: gradeMeta.grade,
+      score: gradeMeta.score,
+      pointsPossible: gradeMeta.pointsPossible,
       submissionState: submission?.workflow_state || "",
       comments,
       comment: comments[0]?.comment || ""
@@ -616,6 +633,29 @@ async function fetchSubmissionStatus(courseIdRaw, assignmentId) {
   } catch {
     return {};
   }
+}
+
+function canvasSubmissionGradeMeta(submission = {}) {
+  const grade = String(submission?.grade ?? submission?.entered_grade ?? "").trim();
+  const gradeLower = grade.toLowerCase();
+  const rawScore = submission?.score ?? submission?.entered_score;
+  const score = Number(rawScore);
+  const pointsPossible = Number(submission?.assignment?.points_possible ?? submission?.points_possible);
+  const hasScore = rawScore !== null && rawScore !== undefined && rawScore !== "" && Number.isFinite(score);
+  const hasPositivePossible = Number.isFinite(pointsPossible) ? pointsPossible > 0 : true;
+  const gradeSaysIncomplete = /\bincomplete\b|\bmissing\b|\bexcused\s*no\b/i.test(gradeLower);
+  const gradeSaysComplete = /\bcomplete\b/i.test(gradeLower) && !gradeSaysIncomplete;
+  const scoreSaysZero = hasScore && score === 0 && hasPositivePossible && Boolean(submission?.graded_at || grade || submission?.workflow_state === "graded" || submission?.missing);
+  const missing = Boolean(submission?.missing);
+  const forceIncomplete = Boolean(gradeSaysIncomplete || scoreSaysZero || missing);
+  return {
+    forceIncomplete,
+    forceIncompleteReason: gradeSaysIncomplete ? "Canvas grade is incomplete" : scoreSaysZero ? "Canvas grade is 0" : missing ? "Canvas marks this missing" : "",
+    completedByGrade: Boolean(gradeSaysComplete || (hasScore && score > 0)),
+    grade,
+    score: hasScore ? score : null,
+    pointsPossible: Number.isFinite(pointsPossible) ? pointsPossible : null
+  };
 }
 
 async function normalizeCanvasAssignment(row, courseIdOverride = "") {
@@ -635,7 +675,12 @@ async function normalizeCanvasAssignment(row, courseIdOverride = "") {
     courseId: courseIdRaw ? `canvas-course-${courseIdRaw}` : undefined,
     externalKey: `canvas:${courseIdRaw || "x"}:${assignmentId}`,
     canvasUrl: absoluteCanvasUrl(row?.html_url || `/courses/${courseIdRaw}/assignments/${assignmentId}`),
-    completed: Boolean(submission.completed),
+    completed: submission.forceIncomplete ? false : Boolean(submission.completed),
+    canvasForceIncomplete: Boolean(submission.forceIncomplete),
+    forceIncompleteReason: submission.forceIncompleteReason || "",
+    canvasGrade: submission.grade || "",
+    canvasScore: submission.score,
+    canvasPointsPossible: submission.pointsPossible,
     submissionState: submission.submissionState || "",
     comments: submission.comments || [],
     comment: submission.comment || ""
@@ -941,6 +986,7 @@ function scrapeTeamSnapTasks(meta = getTeamSnapPageMeta()) {
 
 function scrapeMembeanTasks() {
   const pageText = text(document.body || document.documentElement || document.body);
+  if (isMembeanLoginOrUnreadablePage(pageText)) return [];
 
   let completedSessions = 0;
   let requiredSessions = 3;
@@ -1018,6 +1064,14 @@ function scrapeMembeanTasks() {
     externalKey: `membean:weekly:${weekKey(new Date())}`,
     progress: { completedSessions, requiredSessions, minutesPerSession: 10 }
   }];
+}
+
+function isMembeanLoginOrUnreadablePage(pageText) {
+  const path = String(window.location.pathname || "");
+  if (/\/(?:login|signin|sign_in|users\/sign_in)\b/i.test(path)) return true;
+  const hasPassword = Boolean(document.querySelector("input[type='password']"));
+  const hasTrainingSignals = /training expectations|total minutes of training|days trained had 10\+ min|days with 10\+ minutes|train\s+\d+\s+more/i.test(pageText);
+  return hasPassword && !hasTrainingSignals;
 }
 
 function inferMembeanSessions(minutes) {

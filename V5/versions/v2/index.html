@@ -1635,10 +1635,24 @@
     return window.location.protocol === "file:" || window.location.origin === "null" ? "*" : window.location.origin;
   }
 
+  function isCanvasForceIncompleteTask(task) {
+    return Boolean(task?.canvasForceIncomplete || task?.forceIncomplete || task?.completionLockedIncomplete);
+  }
+
+  function mergedTaskCompleted(existingTask, incomingTask, source) {
+    if (isCanvasForceIncompleteTask(existingTask) || isCanvasForceIncompleteTask(incomingTask)) return false;
+    return Boolean(existingTask?.completed || incomingTask?.completed);
+  }
+
+  function publishWebsiteTasksToExtension() {
+    const tasks = state.tasks.filter(isActionableTask);
+    window.postMessage({ type: "EPSTUDY_WEBSITE_TASKS", tasks, updatedAt: new Date().toISOString(), websiteVersion: EPSTUDY_APP_VERSION }, bridgeTargetOrigin());
+  }
+
   function requestExtensionSync(statusMessage = "Requesting fresh data from the extension...") {
     const status = document.getElementById("extensionSyncStatus");
     if (status) status.textContent = statusMessage;
-    window.postMessage({ type: "EPSTUDY_EXTENSION_REQUEST_SYNC", config: { canvasDomain: getCanvasConfig().domain } }, bridgeTargetOrigin());
+    window.postMessage({ type: "EPSTUDY_EXTENSION_REQUEST_SYNC", config: { canvasDomain: getCanvasConfig().domain, membeanEnabled: Boolean(state.membeanEnabled) } }, bridgeTargetOrigin());
   }
 
   function fetchTextViaExtension(url, timeoutMs = 10000) {
@@ -2014,7 +2028,9 @@
   }
 
   function absorbDuplicateTask(keeper, duplicate) {
-    keeper.completed = String(keeper.source || duplicate.source || "").toLowerCase() === "canvas" ? Boolean(keeper.completed) : Boolean(keeper.completed || duplicate.completed);
+    keeper.completed = mergedTaskCompleted(keeper, duplicate, String(keeper.source || duplicate.source || "").toLowerCase());
+    keeper.canvasForceIncomplete = Boolean(keeper.canvasForceIncomplete || duplicate.canvasForceIncomplete);
+    keeper.forceIncompleteReason = keeper.forceIncompleteReason || duplicate.forceIncompleteReason || "";
     keeper.estimatedMinutes = Math.max(Number(keeper.estimatedMinutes) || 0, Number(duplicate.estimatedMinutes) || 0) || 25;
     keeper.title = normalizeAssignmentTitle(keeper.title || duplicate.title);
     if (isFallbackCourseId(keeper.courseId) && !isFallbackCourseId(duplicate.courseId)) keeper.courseId = duplicate.courseId;
@@ -2712,7 +2728,10 @@
     state.lastSessionDate = today;
 
     let doneTask = state.tasks.find(t => isActionableTask(t) && t.id === state.selectedTaskId && !t.completed);
-    if (doneTask) doneTask.completed = true;
+    if (doneTask && !isCanvasForceIncompleteTask(doneTask)) {
+      doneTask.completed = true;
+      doneTask.completedAt = new Date().toISOString();
+    }
     clearTimerTask();
 
     emitConfetti(100);
@@ -2727,7 +2746,7 @@
     if (btn) btn.textContent = "Start Focus";
     const ebtn = document.getElementById("startPauseExpandedBtn");
     if (ebtn) ebtn.textContent = "Start Focus";
-    saveState(); renderAll();
+    saveState(); publishWebsiteTasksToExtension(); renderAll();
   }
 
   function getCalendarAnchorDate() {
@@ -3212,7 +3231,12 @@
       rawCanvasCourseId: taskSource === "canvas" ? String(raw.courseId || raw.course_id || raw.context_code?.replace?.(/^course_/, "") || "").replace(/^canvas-course-/, "").trim() : "",
       courseName: taskSource === "canvas" ? String(raw.courseName || raw.context_name || raw.course_name || "").trim() : "",
       courseCode: taskSource === "canvas" ? String(raw.courseCode || raw.course_code || "").trim() : "",
-      completed: Boolean(raw.completed),
+      completed: Boolean(raw.completed) && !isCanvasForceIncompleteTask(raw),
+      canvasForceIncomplete: Boolean(raw.canvasForceIncomplete || raw.forceIncomplete || raw.completionLockedIncomplete),
+      forceIncompleteReason: raw.forceIncompleteReason || raw.incompleteReason || "",
+      canvasGrade: raw.canvasGrade || raw.grade || "",
+      canvasScore: raw.canvasScore ?? raw.score ?? null,
+      canvasPointsPossible: raw.canvasPointsPossible ?? raw.pointsPossible ?? null,
       externalKey,
       canvasUrl: raw.canvasUrl || raw.html_url || raw.url || "",
       eventUrl: raw.eventUrl || (taskSource === "teamsnap" ? raw.url : ""),
@@ -3280,7 +3304,7 @@
         state.tasks.push(incoming);
         added++;
       } else {
-        state.tasks[found.index] = { ...found.task, ...incoming, completed: source === "canvas" ? Boolean(incoming.completed) : Boolean(found.task.completed || incoming.completed) };
+        state.tasks[found.index] = { ...found.task, ...incoming, completed: mergedTaskCompleted(found.task, incoming, source) };
         updated++;
       }
     }
@@ -3855,7 +3879,7 @@
       const act = btn.dataset.action, id = btn.dataset.id;
       if (act === "load-timer" || act === "select") { loadTaskInTimer(id); return; }
       if (act === "delete") { state.tasks = state.tasks.filter(t => t.id !== id); state.smartDismissedTaskIds = state.smartDismissedTaskIds.filter(x => x !== id); if(state.selectedTaskId===id) state.selectedTaskId=null; saveState(); renderAll(); }
-      if (act === "toggle") { const t=state.tasks.find(x=>x.id===id); if(t) { t.completed=!t.completed; if(t.completed) { state.smartDismissedTaskIds = state.smartDismissedTaskIds.filter(x => x !== id); emitConfetti(28); } } saveState(); renderAll(); }
+      if (act === "toggle") { const t=state.tasks.find(x=>x.id===id); if(t) { if (isCanvasForceIncompleteTask(t)) { t.completed = false; addNotification(t.forceIncompleteReason || "Canvas says this assignment is not complete yet.", "warning", 5000); } else { t.completed=!t.completed; t.completedAt = t.completed ? new Date().toISOString() : ""; if(t.completed) { state.smartDismissedTaskIds = state.smartDismissedTaskIds.filter(x => x !== id); emitConfetti(28); } } } saveState(); publishWebsiteTasksToExtension(); renderAll(); }
       if (act === "comment") {
         const t = state.tasks.find(x => x.id === id);
         const comment = taskCommentText(t);
@@ -4124,7 +4148,7 @@
 
     document.getElementById("extensionExportBtn")?.addEventListener("click", () => {
       const tasks = state.tasks.filter(isActionableTask);
-      window.postMessage({ type: "EPSTUDY_WEBSITE_TASKS", tasks, updatedAt: new Date().toISOString(), websiteVersion: EPSTUDY_APP_VERSION }, bridgeTargetOrigin());
+      publishWebsiteTasksToExtension();
       const status = document.getElementById("extensionSyncStatus");
       if (status) status.textContent = `Sent ${tasks.length} website task(s) to the extension.`;
     });

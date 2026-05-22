@@ -94,6 +94,7 @@
         <select id="epstudyVersionSelect" aria-label="Switch EPStudy version">
           <option value="v2">V2</option>
           <option value="v3">V3</option>
+          <option value="v4">V4</option>
           <option value="simple">Simple</option>
         </select>
       </label>
@@ -187,7 +188,7 @@
   const STORAGE_KEY = "epstudy_secure_pro_v6";
   const VERSION_STORAGE_KEY = "epstudy_v5_selected_version";
   const EPSTUDY_APP_VERSION = "simple";
-  const VERSION_PATHS = { v2: "../v2/index.html", v3: "../v3/index.html", simple: "index.html" };
+  const VERSION_PATHS = { v2: "../v2/index.html", v3: "../v3/index.html", v4: "../v4/index.html", simple: "index.html" };
   const DEFAULT_COURSES = [
     { id: "course-personal", name: "Personal", code: "PERS", color: "#8b5cf6" },
     { id: "course-sports", name: "Team Event", code: "TEAM", color: "#10b981" }
@@ -508,11 +509,15 @@
     }
     if (state.selectedTaskId) {
       const task = state.tasks.find(row => row.id === state.selectedTaskId);
-      if (task) task.completed = true;
+      if (task && !isCanvasForceIncompleteTask(task)) {
+        task.completed = true;
+        task.completedAt = new Date().toISOString();
+      }
     }
     timerRemaining = timerTotal;
     document.getElementById("timerStatus").textContent = "Session complete.";
     saveState();
+    publishWebsiteTasks();
     render();
   }
 
@@ -520,9 +525,18 @@
     window.postMessage({ type: "EPSTUDY_WEBSITE_TASKS", tasks: state.tasks, updatedAt: new Date().toISOString(), websiteVersion: EPSTUDY_APP_VERSION }, bridgeTargetOrigin());
   }
 
+  function isCanvasForceIncompleteTask(task) {
+    return Boolean(task?.canvasForceIncomplete || task?.forceIncomplete || task?.completionLockedIncomplete);
+  }
+
+  function mergedTaskCompleted(existingTask, incomingTask) {
+    if (isCanvasForceIncompleteTask(existingTask) || isCanvasForceIncompleteTask(incomingTask)) return false;
+    return Boolean(existingTask?.completed || incomingTask?.completed);
+  }
+
   function requestExtensionSync() {
     document.getElementById("syncBtn").textContent = "Syncing";
-    window.postMessage({ type: "EPSTUDY_EXTENSION_REQUEST_SYNC", config: {} }, bridgeTargetOrigin());
+    window.postMessage({ type: "EPSTUDY_EXTENSION_REQUEST_SYNC", config: { membeanEnabled: true } }, bridgeTargetOrigin());
     window.setTimeout(() => { document.getElementById("syncBtn").textContent = "Sync"; }, 1200);
   }
 
@@ -597,7 +611,12 @@
       rawCanvasCourseId: taskSource === "canvas" ? rawCourse.replace(/^canvas-course-/, "") : "",
       courseName: taskSource === "canvas" ? String(raw?.courseName || raw?.context_name || raw?.course_name || "").trim() : "",
       courseCode: taskSource === "canvas" ? String(raw?.courseCode || raw?.course_code || "").trim() : "",
-      completed: Boolean(raw?.completed),
+      completed: Boolean(raw?.completed) && !isCanvasForceIncompleteTask(raw),
+      canvasForceIncomplete: Boolean(raw?.canvasForceIncomplete || raw?.forceIncomplete || raw?.completionLockedIncomplete),
+      forceIncompleteReason: raw?.forceIncompleteReason || raw?.incompleteReason || "",
+      canvasGrade: raw?.canvasGrade || raw?.grade || "",
+      canvasScore: raw?.canvasScore ?? raw?.score ?? null,
+      canvasPointsPossible: raw?.canvasPointsPossible ?? raw?.pointsPossible ?? null,
       externalKey,
       canvasUrl: raw?.canvasUrl || raw?.html_url || raw?.url || "",
       eventUrl: raw?.eventUrl || ""
@@ -610,7 +629,7 @@
     for (const task of incoming) {
       const key = task.externalKey || `${task.source}:${task.id}`;
       const index = byKey.get(key);
-      if (Number.isInteger(index)) state.tasks[index] = { ...state.tasks[index], ...task };
+      if (Number.isInteger(index)) state.tasks[index] = { ...state.tasks[index], ...task, completed: mergedTaskCompleted(state.tasks[index], task) };
       else state.tasks.push(task);
     }
     state.tasks = normalizeTasks(state.tasks, state.courses);
@@ -689,8 +708,16 @@
       if (!checkbox) return;
       const task = state.tasks.find(row => row.id === checkbox.dataset.id);
       if (!task) return;
-      task.completed = checkbox.checked;
+      if (checkbox.checked && isCanvasForceIncompleteTask(task)) {
+        checkbox.checked = false;
+        task.completed = false;
+        document.getElementById("timerStatus").textContent = task.forceIncompleteReason || "Canvas says this assignment is not complete yet.";
+      } else {
+        task.completed = checkbox.checked;
+        task.completedAt = task.completed ? new Date().toISOString() : "";
+      }
       saveState();
+      publishWebsiteTasks();
       render();
     });
     document.getElementById("prevMonth").addEventListener("click", () => { selectedDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1); renderCalendar(); });
