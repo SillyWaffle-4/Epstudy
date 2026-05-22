@@ -1704,6 +1704,7 @@
         merged.dashboardSections.membean = false;
         merged.notificationSettings.membean = false;
       }
+      merged.tasks = merged.tasks.filter(task => String(task?.source || "").toLowerCase() !== "membean");
       if (!merged.teamSnapEnabled) {
         merged.tasks = merged.tasks.filter(task => String(task?.source || "").toLowerCase() !== "teamsnap");
         merged.teamSnap48NoticeKeys = [];
@@ -4344,6 +4345,19 @@
     return { added, updated, total: normalized.length };
   }
 
+  function recordMembeanProgress(rows) {
+    if (!state.membeanEnabled || !Array.isArray(rows)) return false;
+    for (const row of rows) {
+      const completed = Number(row?.progress?.completedSessions);
+      const required = Number(row?.progress?.requiredSessions);
+      if (!Number.isFinite(completed)) continue;
+      state.membeanSessionsCompleted = Math.max(0, Math.min(Number.isFinite(required) ? required : 3, completed));
+      state.membeanSessionsLastUpdated = new Date().toISOString();
+      return true;
+    }
+    return false;
+  }
+
   function handleExtensionPayload(payload) {
     if (!payload || typeof payload !== "object") return;
     state.extensionSync.status = payload.sourceStatus || state.extensionSync.status || {};
@@ -4358,23 +4372,14 @@
       state.lastCourseResyncAt = new Date().toISOString();
     }
     if (state.teamSnapEnabled && Array.isArray(payload.teamsnap) && payload.teamsnap.length) ensureSportsCourse();
-    for (const source of ["canvas", "teamsnap", "membean"]) {
-      if (source === "membean" && !state.membeanEnabled) continue;
+    recordMembeanProgress(payload.membean);
+    state.tasks = state.tasks.filter(task => String(task?.source || "").toLowerCase() !== "membean");
+    for (const source of ["canvas", "teamsnap"]) {
       if (source === "teamsnap" && !state.teamSnapEnabled) continue;
       if (!Array.isArray(payload[source])) continue;
       const result = upsertImportedTasks(payload[source], source);
       if (source === "canvas") resolvedUnfiltered = resolveUnfilteredCanvasTasks() || resolvedUnfiltered;
       sourceCounts[source] = result.total;
-      // Extract membean session count from progress data
-      if (source === "membean" && Array.isArray(payload[source])) {
-        for (const task of payload[source]) {
-          if (task.progress && Number.isFinite(Number(task.progress.completedSessions))) {
-            state.membeanSessionsCompleted = Number(task.progress.completedSessions);
-            state.membeanSessionsLastUpdated = new Date().toISOString();
-            break;
-          }
-        }
-      }
     }
     const total = Object.values(sourceCounts).reduce((sum, count) => sum + count, 0);
     const status = document.getElementById("extensionSyncStatus");

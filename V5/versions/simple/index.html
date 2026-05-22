@@ -36,9 +36,10 @@
   .button:hover, button:hover { border-color: var(--navy); }
   .primary { background: var(--navy); border-color: var(--navy); color: #fff; }
   .danger { color: var(--danger); }
-  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; }
+  .tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 14px 0; }
   .tab { background: #eef3f9; border-color: transparent; }
   .tab.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .tab[hidden] { display: none; }
   .page { display: none; }
   .page.active { display: block; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; box-shadow: var(--shadow); }
@@ -68,6 +69,21 @@
   .stat { border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: #fff; }
   .stat strong { display: block; font-size: 1.25rem; }
   .status { margin-top: 10px; color: var(--muted); min-height: 1.4em; }
+  .skin-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .skin-card { min-height: 116px; display: grid; align-content: end; justify-items: start; border: 1px solid var(--line); border-radius: 8px; padding: 10px; color: #fff; text-align: left; box-shadow: var(--shadow); overflow: hidden; }
+  .skin-card.selected { outline: 3px solid color-mix(in srgb, var(--gold) 70%, transparent); border-color: var(--gold); }
+  .skin-card strong, .skin-card span { position: relative; z-index: 1; text-shadow: 0 1px 10px rgba(15, 23, 42, 0.28); }
+  .skin-default { background: linear-gradient(145deg, #f5f7fb, #ffffff 55%, #dbeafe); color: var(--text); }
+  .skin-sunset { background: linear-gradient(135deg, #fb7185 0%, #f97316 45%, #facc15 100%); }
+  .skin-lagoon { background: linear-gradient(135deg, #06b6d4 0%, #2563eb 45%, #7c3aed 100%); }
+  .skin-watermelon { background: linear-gradient(135deg, #22c55e 0%, #14b8a6 42%, #f43f5e 100%); }
+  .skin-candy { background: linear-gradient(135deg, #ec4899 0%, #a855f7 45%, #38bdf8 100%); }
+  .skin-garden { background: linear-gradient(135deg, #84cc16 0%, #22c55e 45%, #f59e0b 100%); }
+  body.simple-skin-sunset { --bg: #fff7ed; --panel: #fffaf2; --navy: #c2410c; --gold: #facc15; }
+  body.simple-skin-lagoon { --bg: #ecfeff; --panel: #f8feff; --navy: #155e75; --gold: #38bdf8; }
+  body.simple-skin-watermelon { --bg: #f0fdf4; --panel: #ffffff; --navy: #166534; --gold: #fb7185; }
+  body.simple-skin-candy { --bg: #fdf2f8; --panel: #fff7fe; --navy: #7e22ce; --gold: #38bdf8; }
+  body.simple-skin-garden { --bg: #f7fee7; --panel: #ffffff; --navy: #3f6212; --gold: #f59e0b; }
   @media (max-width: 800px) {
     .tabs, .timer-layout, .stats { grid-template-columns: 1fr; }
     .task-form { grid-template-columns: 1fr; }
@@ -107,6 +123,7 @@
     <button class="tab active" type="button" data-page="tasks">Tasks</button>
     <button class="tab" type="button" data-page="calendar">Calendar</button>
     <button class="tab" type="button" data-page="timer">Timer</button>
+    <button id="cosmeticsTab" class="tab" type="button" data-page="cosmetics" hidden>Cosmetics</button>
   </nav>
 
   <main>
@@ -181,6 +198,17 @@
         </div>
       </div>
     </section>
+
+    <section id="page-cosmetics" class="page">
+      <div class="panel grid">
+        <div>
+          <strong>Cosmetics</strong>
+          <p class="muted" style="margin: 4px 0 0;">Simple keeps this quiet: vivid static colors only, no animated effects.</p>
+        </div>
+        <div id="cosmeticsGrid" class="skin-grid"></div>
+        <p id="cosmeticsWindowNote" class="muted"></p>
+      </div>
+    </section>
   </main>
 </div>
 
@@ -192,6 +220,14 @@
   const DEFAULT_COURSES = [
     { id: "course-personal", name: "Personal", code: "PERS", color: "#8b5cf6" },
     { id: "course-sports", name: "Team Event", code: "TEAM", color: "#10b981" }
+  ];
+  const SIMPLE_SKINS = [
+    { id: "default", name: "Clean Sky", note: "Bright and calm.", className: "skin-default" },
+    { id: "sunset", name: "Sunset", note: "Warm coral and gold.", className: "skin-sunset" },
+    { id: "lagoon", name: "Lagoon", note: "Blue, cyan, violet.", className: "skin-lagoon" },
+    { id: "watermelon", name: "Watermelon", note: "Green and pink.", className: "skin-watermelon" },
+    { id: "candy", name: "Candy", note: "Pink, purple, sky.", className: "skin-candy" },
+    { id: "garden", name: "Garden", note: "Leafy and vivid.", className: "skin-garden" }
   ];
   const UNFILTERED_COURSE_ID = "course-unfiltered";
   const UNFILTERED_COURSE = { id: UNFILTERED_COURSE_ID, name: "Unfiltered", code: "", color: "#64748b", hidden: true };
@@ -249,6 +285,9 @@
       streakDays: 0,
       lastSessionDate: null,
       timerMinutes: 25,
+      selectedSimpleSkin: "default",
+      membeanSessionsCompleted: 0,
+      membeanSessionsLastUpdated: null,
       calendarYear: new Date().getFullYear(),
       calendarMonth: new Date().getMonth(),
       calendarDay: new Date().getDate(),
@@ -258,6 +297,9 @@
       const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
       if (!parsed || typeof parsed !== "object") return fallback;
       const merged = { ...fallback, ...parsed };
+      merged.selectedSimpleSkin = SIMPLE_SKINS.some(skin => skin.id === merged.selectedSimpleSkin) ? merged.selectedSimpleSkin : "default";
+      merged.membeanSessionsCompleted = Math.max(0, Math.min(3, Number(merged.membeanSessionsCompleted) || 0));
+      merged.membeanSessionsLastUpdated = typeof merged.membeanSessionsLastUpdated === "string" ? merged.membeanSessionsLastUpdated : null;
       merged.courses = normalizeCourses(merged.courses);
       merged.tasks = normalizeTasks(merged.tasks, merged.courses);
       return merged;
@@ -304,7 +346,8 @@
   function normalizeTasks(tasks, courses) {
     return (Array.isArray(tasks) ? tasks : [])
       .map(task => {
-        const courseId = String(task?.courseId || "").trim();
+      const courseId = String(task?.courseId || "").trim();
+        if (String(task?.source || "").toLowerCase() === "membean") return null;
         if (courseId !== UNFILTERED_COURSE_ID && !courses.some(course => course.id === courseId)) return null;
         const dueDate = parseDate(task?.dueDate || task?.due_at || task?.start_at || task?.date);
         if (!dueDate) return null;
@@ -358,6 +401,24 @@
     return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
   }
 
+  function isCosmeticsWindowOpen(date = new Date()) {
+    const minutes = date.getHours() * 60 + date.getMinutes();
+    return minutes >= (15 * 60 + 5) && minutes < (20 * 60);
+  }
+
+  function allowedPages() {
+    return isCosmeticsWindowOpen() ? ["tasks", "calendar", "timer", "cosmetics"] : ["tasks", "calendar", "timer"];
+  }
+
+  function applySimpleSkin() {
+    const skinId = SIMPLE_SKINS.some(skin => skin.id === state.selectedSimpleSkin) ? state.selectedSimpleSkin : "default";
+    document.body.className = document.body.className
+      .split(/\s+/)
+      .filter(cls => cls && !cls.startsWith("simple-skin-"))
+      .join(" ");
+    if (skinId !== "default") document.body.classList.add(`simple-skin-${skinId}`);
+  }
+
   function dueLabel(value) {
     const date = new Date(value);
     return date.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
@@ -368,7 +429,7 @@
   }
 
   function setPage(page) {
-    currentPage = ["tasks", "calendar", "timer"].includes(page) ? page : "tasks";
+    currentPage = allowedPages().includes(page) ? page : "tasks";
     document.querySelectorAll(".tab").forEach(tab => tab.classList.toggle("active", tab.dataset.page === currentPage));
     document.querySelectorAll(".page").forEach(panel => panel.classList.toggle("active", panel.id === `page-${currentPage}`));
     const url = new URL(window.location);
@@ -378,10 +439,38 @@
   }
 
   function render() {
+    applySimpleSkin();
+    renderCosmeticsAccess();
     renderCourses();
     renderTasks();
     renderCalendar();
     renderTimer();
+    renderCosmetics();
+  }
+
+  function renderCosmeticsAccess() {
+    const open = isCosmeticsWindowOpen();
+    const tab = document.getElementById("cosmeticsTab");
+    if (tab) tab.hidden = !open;
+    if (!open && currentPage === "cosmetics") setPage("tasks");
+  }
+
+  function renderCosmetics() {
+    const grid = document.getElementById("cosmeticsGrid");
+    const note = document.getElementById("cosmeticsWindowNote");
+    if (!grid || !note) return;
+    if (!isCosmeticsWindowOpen()) {
+      grid.innerHTML = "";
+      note.textContent = "Cosmetics are available from 3:05 PM to 8:00 PM.";
+      return;
+    }
+    note.textContent = "Available now. This page disappears at 8:00 PM.";
+    grid.innerHTML = SIMPLE_SKINS.map(skin => `
+      <button class="skin-card ${skin.className}${state.selectedSimpleSkin === skin.id ? " selected" : ""}" type="button" data-skin-id="${escapeHtml(skin.id)}">
+        <strong>${escapeHtml(skin.name)}</strong>
+        <span>${escapeHtml(skin.note)}</span>
+      </button>
+    `).join("");
   }
 
   function renderCourses() {
@@ -600,6 +689,7 @@
 
   function normalizeIncomingTask(raw, source) {
     const taskSource = String(raw?.source || source || "extension").toLowerCase();
+    if (taskSource === "membean") return null;
     const rawCourse = String(raw?.courseId || raw?.course_id || raw?.context_code?.replace?.(/^course_/, "") || "").trim();
     let courseId = rawCourse;
     if (taskSource === "canvas" && /^\d+$/.test(rawCourse)) courseId = `canvas-course-${rawCourse}`;
@@ -652,6 +742,19 @@
     state.tasks = normalizeTasks(state.tasks, state.courses);
   }
 
+  function recordMembeanProgress(rows) {
+    if (!Array.isArray(rows)) return false;
+    for (const row of rows) {
+      const completed = Number(row?.progress?.completedSessions);
+      const required = Number(row?.progress?.requiredSessions);
+      if (!Number.isFinite(completed)) continue;
+      state.membeanSessionsCompleted = Math.max(0, Math.min(Number.isFinite(required) ? required : 3, completed));
+      state.membeanSessionsLastUpdated = new Date().toISOString();
+      return true;
+    }
+    return false;
+  }
+
   function handleExtensionPayload(payload) {
     if (!payload || typeof payload !== "object") return;
     upsertCanvasCourses(payload.courses || payload.canvasCourses || []);
@@ -659,7 +762,8 @@
     upsertTasks(payload.canvas || [], "canvas");
     resolveUnfilteredCanvasTasks();
     upsertTasks(payload.teamsnap || [], "teamsnap");
-    upsertTasks(payload.membean || [], "membean");
+    recordMembeanProgress(payload.membean);
+    state.tasks = state.tasks.filter(task => String(task?.source || "").toLowerCase() !== "membean");
     saveState();
     render();
   }
@@ -695,6 +799,14 @@
       render();
     });
     document.body.addEventListener("click", event => {
+      const skinNode = event.target.closest("[data-skin-id]");
+      if (skinNode) {
+        if (!isCosmeticsWindowOpen()) return;
+        state.selectedSimpleSkin = skinNode.dataset.skinId;
+        saveState();
+        render();
+        return;
+      }
       const actionNode = event.target.closest("[data-action]");
       const dayNode = event.target.closest("[data-date]");
       if (dayNode) {
@@ -761,6 +873,10 @@
   registerEvents();
   setPage(currentPage);
   render();
+  window.setInterval(() => {
+    renderCosmeticsAccess();
+    renderCosmetics();
+  }, 60000);
   publishWebsiteTasks();
 </script>
 </body>

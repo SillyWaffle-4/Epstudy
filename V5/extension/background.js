@@ -223,21 +223,19 @@ async function getHealthSnapshot() {
   };
 }
 
-async function openSourceTab(source) {
+async function openSourceTab(source, config = {}) {
   const safeSource = String(source || "").toLowerCase();
   if (safeSource === "canvas") {
-    await chrome.tabs.create({ url: `https://${DEFAULT_CANVAS_HOST}/` });
-    return;
+    const host = String(config.canvasDomain || DEFAULT_CANVAS_HOST).replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+    return chrome.tabs.create({ url: `https://${host || DEFAULT_CANVAS_HOST}/`, active: false });
   }
   if (safeSource === "membean") {
-    await chrome.tabs.create({ url: "https://membean.com/" });
-    return;
+    return chrome.tabs.create({ url: "https://membean.com/dashboard", active: false });
   }
   if (safeSource === "teamsnap") {
     const data = await chrome.storage.local.get(["teamSnapLinks"]);
     const saved = Array.isArray(data.teamSnapLinks) ? data.teamSnapLinks.map(link => normalizeTeamSnapLink(link.url)).find(Boolean) : "";
-    await chrome.tabs.create({ url: saved || "https://go.teamsnap.com/" });
-    return;
+    return chrome.tabs.create({ url: saved || "https://go.teamsnap.com/", active: false });
   }
   throw new Error("Unknown source.");
 }
@@ -556,7 +554,8 @@ function normalizeDomain(value) {
 }
 
 async function syncAllSources(config = {}) {
-  const tabs = await chrome.tabs.query({});
+  let tabs = await chrome.tabs.query({});
+  tabs = await ensureSourceTabsOpenForSync(tabs, config);
   await rememberOpenTeamSnapTabs(tabs);
   const hadCanvasTab = tabs.some((tab) => tab.url && sourceFromUrl(tab.url, config) === "canvas");
   await scrapeOpenSourceTabs(tabs, config, "canvas");
@@ -568,6 +567,23 @@ async function syncAllSources(config = {}) {
   const cache = await getCache();
   await broadcastToEpstudy(cache);
   return cache;
+}
+
+async function ensureSourceTabsOpenForSync(tabs, config = {}) {
+  const sources = ["canvas", "teamsnap", "membean"];
+  const opened = [];
+  for (const source of sources) {
+    const isOpen = (tabs || []).some(tab => sourceFromUrl(tab?.url || "", config) === source);
+    if (isOpen) continue;
+    try {
+      const tab = await openSourceTab(source, config);
+      if (tab?.id) opened.push(tab);
+    } catch {
+      // Source status handling below will report unreadable sources without blocking sync.
+    }
+  }
+  await Promise.all(opened.map(tab => waitForTabLoad(tab.id, 15000)));
+  return chrome.tabs.query({});
 }
 
 async function scrapeOpenSourceTabs(tabs, config, source) {

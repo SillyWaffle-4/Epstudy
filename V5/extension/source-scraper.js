@@ -1052,12 +1052,13 @@ function scrapeMembeanTasks() {
   const missingSessions = Math.max(0, requiredSessions - completedSessions);
   const due = nextSaturdayMorning();
 
-  // Return a consistent task object (even when complete) so the website can store progress
+  // Return a progress row, not a homework task. Canvas usually already has the actual Membean assignment.
   return [{
     id: `membean-weekly-${weekKey(new Date())}`,
-    title: missingSessions > 0 ? `Membean: complete ${missingSessions} more 10-minute session${missingSessions === 1 ? "" : "s"}` : "Membean: all sessions complete",
+    kind: "progress",
+    title: "Membean weekly progress",
     dueDate: due.toISOString(),
-    estimatedMinutes: missingSessions * 10,
+    estimatedMinutes: 0,
     source: "membean",
     completed: missingSessions <= 0,
     externalKey: `membean:weekly:${weekKey(new Date())}`,

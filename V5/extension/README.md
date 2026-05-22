@@ -24,7 +24,7 @@ The extension syncs automatically every 10 minutes. You can also use Settings ->
 
 - Canvas assignments and dated todo items found on signed-in Canvas pages
 - TeamSnap games, practices, matches, tournaments, and events across multiple team tabs
-- Membean weekly requirement as 3 sessions of 10 minutes, creating a task for the remaining sessions due Saturday morning
+- Membean weekly progress as session counts only; Canvas teacher-created Membean assignments stay responsible for the actual task
 - Extension health metadata, including source status, saved TeamSnap schedule links, Focus Shield state, selected website version, and website task export counts
 
 ## Review Notes
