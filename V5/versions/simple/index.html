@@ -288,6 +288,7 @@
       selectedSimpleSkin: "default",
       membeanSessionsCompleted: 0,
       membeanSessionsLastUpdated: null,
+      ignoredTaskKeys: [],
       calendarYear: new Date().getFullYear(),
       calendarMonth: new Date().getMonth(),
       calendarDay: new Date().getDate(),
@@ -300,6 +301,7 @@
       merged.selectedSimpleSkin = SIMPLE_SKINS.some(skin => skin.id === merged.selectedSimpleSkin) ? merged.selectedSimpleSkin : "default";
       merged.membeanSessionsCompleted = Math.max(0, Math.min(3, Number(merged.membeanSessionsCompleted) || 0));
       merged.membeanSessionsLastUpdated = typeof merged.membeanSessionsLastUpdated === "string" ? merged.membeanSessionsLastUpdated : null;
+      merged.ignoredTaskKeys = Array.isArray(merged.ignoredTaskKeys) ? Array.from(new Set(merged.ignoredTaskKeys.map(String).filter(Boolean))).slice(-1000) : [];
       merged.courses = normalizeCourses(merged.courses);
       merged.tasks = normalizeTasks(merged.tasks, merged.courses);
       return merged;
@@ -383,6 +385,18 @@
 
   function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[char]));
+  }
+
+  function taskAttr(value) {
+    return encodeURIComponent(String(value || ""));
+  }
+
+  function readTaskAttr(value) {
+    try { return decodeURIComponent(String(value || "")); } catch { return String(value || ""); }
+  }
+
+  function taskIdFromNode(node) {
+    return readTaskAttr(node?.dataset?.id || node?.closest?.(".task")?.dataset?.taskId || "");
   }
 
   function courseById(id) {
@@ -498,16 +512,16 @@
     }
     list.innerHTML = rows.map(task => {
       const course = courseById(task.courseId);
-      return `<article class="task${task.completed ? " done" : ""}">
-        <input type="checkbox" data-action="toggle" data-id="${escapeHtml(task.id)}" ${task.completed ? "checked" : ""} aria-label="Toggle task" />
+      return `<article class="task${task.completed ? " done" : ""}" data-task-id="${taskAttr(task.id)}">
+        <input type="checkbox" data-action="toggle" data-id="${taskAttr(task.id)}" ${task.completed ? "checked" : ""} aria-label="Toggle task" />
         <div>
           <div class="task-title">${escapeHtml(task.title)}</div>
           <div class="task-meta">${escapeHtml(course?.name || "Course")} · ${task.estimatedMinutes}m · ${dueLabel(task.dueDate)}</div>
         </div>
         <div class="task-actions">
-          <button type="button" data-action="timer" data-id="${escapeHtml(task.id)}">Timer</button>
-          ${task.canvasUrl || task.eventUrl ? `<button type="button" data-action="open" data-id="${escapeHtml(task.id)}">Open</button>` : ""}
-          <button class="danger" type="button" data-action="delete" data-id="${escapeHtml(task.id)}">Delete</button>
+          <button type="button" data-action="timer" data-id="${taskAttr(task.id)}">Timer</button>
+          ${task.canvasUrl || task.eventUrl ? `<button type="button" data-action="open" data-id="${taskAttr(task.id)}">Open</button>` : ""}
+          <button class="danger" type="button" data-action="delete" data-id="${taskAttr(task.id)}">Dismiss</button>
         </div>
       </article>`;
     }).join("");
@@ -545,10 +559,10 @@
     const rows = state.tasks.filter(task => sameDay(new Date(task.dueDate), selectedDate));
     list.innerHTML = rows.length ? rows.map(task => {
       const course = courseById(task.courseId);
-      return `<article class="task${task.completed ? " done" : ""}">
-        <input type="checkbox" data-action="toggle" data-id="${escapeHtml(task.id)}" ${task.completed ? "checked" : ""} />
+      return `<article class="task${task.completed ? " done" : ""}" data-task-id="${taskAttr(task.id)}">
+        <input type="checkbox" data-action="toggle" data-id="${taskAttr(task.id)}" ${task.completed ? "checked" : ""} />
         <div><div class="task-title">${escapeHtml(task.title)}</div><div class="task-meta">${escapeHtml(course?.name || "Course")} · ${dueLabel(task.dueDate)}</div></div>
-        <div class="task-actions"><button type="button" data-action="timer" data-id="${escapeHtml(task.id)}">Timer</button></div>
+        <div class="task-actions"><button type="button" data-action="timer" data-id="${taskAttr(task.id)}">Timer</button></div>
       </article>`;
     }).join("") : `<div class="muted">No tasks due on this day.</div>`;
   }
@@ -636,6 +650,37 @@
     return Boolean(task?.canvasForceIncomplete || task?.forceIncomplete || task?.completionLockedIncomplete);
   }
 
+  function canvasAssignmentId(task) {
+    const values = [task?.externalKey, task?.canvasUrl, task?.url, task?.eventUrl, task?.id].map(value => String(value || ""));
+    for (const value of values) {
+      const match = value.match(/assignments[/:_-]+(\d+)/i) || value.match(/canvas(?:-assignment)?[:_-]+(?:\d+[:_-]+)?(\d+)/i);
+      if (match) return match[1];
+    }
+    return "";
+  }
+
+  function taskIgnoreKeys(task) {
+    const keys = new Set();
+    if (!task) return [];
+    if (task.externalKey) keys.add(`external:${task.externalKey}`);
+    if (task.id) keys.add(`id:${task.id}`);
+    const assignmentId = canvasAssignmentId(task);
+    if (assignmentId) keys.add(`canvas-assignment:${assignmentId}`);
+    if (task.title && task.dueDate && task.courseId) keys.add(`fallback:${task.courseId}:${task.title}:${task.dueDate}`);
+    return Array.from(keys).filter(Boolean);
+  }
+
+  function isIgnoredTask(task) {
+    const stored = new Set(Array.isArray(state.ignoredTaskKeys) ? state.ignoredTaskKeys : []);
+    return taskIgnoreKeys(task).some(key => stored.has(key));
+  }
+
+  function rememberIgnoredTask(task) {
+    const keys = taskIgnoreKeys(task);
+    if (!keys.length) return;
+    state.ignoredTaskKeys = Array.from(new Set([...(state.ignoredTaskKeys || []), ...keys])).slice(-1000);
+  }
+
   function mergedTaskCompleted(existingTask, incomingTask) {
     if (isCanvasForceIncompleteTask(incomingTask)) return false;
     return Boolean(existingTask?.completed || incomingTask?.completed);
@@ -708,7 +753,7 @@
     const title = String(raw?.title || raw?.name || "Task").replace(/^Assignment\b:?\s*/i, "").replace(/\s+/g, " ").trim();
     if (!title) return null;
     const externalKey = String(raw?.externalKey || `${taskSource}:${raw?.id || title}:${dueDate.toISOString()}`);
-    return {
+    const incomingTask = {
       id: String(raw?.id || externalKey).replace(/[^a-z0-9:_-]/gi, "-"),
       title,
       dueDate: dueDate.toISOString(),
@@ -728,6 +773,7 @@
       canvasUrl: raw?.canvasUrl || raw?.html_url || raw?.url || "",
       eventUrl: raw?.eventUrl || ""
     };
+    return isIgnoredTask(incomingTask) && !isCanvasForceIncompleteTask(incomingTask) ? null : incomingTask;
   }
 
   function upsertTasks(tasks, source) {
@@ -765,6 +811,50 @@
     recordMembeanProgress(payload.membean);
     state.tasks = state.tasks.filter(task => String(task?.source || "").toLowerCase() !== "membean");
     saveState();
+    render();
+  }
+
+  function handleTaskActionClick(event) {
+    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    if (!target) return;
+    const actionNode = target.closest("[data-action]");
+    if (!actionNode || actionNode.dataset.action === "toggle") return;
+    const task = state.tasks.find(row => row.id === taskIdFromNode(actionNode));
+    if (!task) return;
+    const action = actionNode.dataset.action;
+    if (action === "delete") {
+      rememberIgnoredTask(task);
+      state.tasks = state.tasks.filter(row => row.id !== task.id);
+    }
+    if (action === "timer") {
+      state.selectedTaskId = task.id;
+      setTimerMinutes(task.estimatedMinutes || state.timerMinutes || 25);
+      setPage("timer");
+    }
+    if (action === "open") {
+      const url = task.canvasUrl || task.eventUrl;
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+    }
+    saveState();
+    render();
+  }
+
+  function handleTaskToggleChange(event) {
+    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    const checkbox = target?.closest("[data-action='toggle']");
+    if (!checkbox) return;
+    const task = state.tasks.find(row => row.id === taskIdFromNode(checkbox));
+    if (!task) return;
+    if (checkbox.checked && isCanvasForceIncompleteTask(task)) {
+      checkbox.checked = false;
+      task.completed = false;
+      document.getElementById("timerStatus").textContent = task.forceIncompleteReason || "Canvas says this assignment is not complete yet.";
+    } else {
+      task.completed = checkbox.checked;
+      task.completedAt = task.completed ? new Date().toISOString() : "";
+    }
+    saveState();
+    publishWebsiteTasks();
     render();
   }
 
@@ -807,47 +897,19 @@
         render();
         return;
       }
-      const actionNode = event.target.closest("[data-action]");
-      const dayNode = event.target.closest("[data-date]");
+      const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+      if (!target) return;
+      const dayNode = target.closest("[data-date]");
       if (dayNode) {
         selectedDate = new Date(`${dayNode.dataset.date}T12:00:00`);
         renderCalendar();
         return;
       }
-      if (!actionNode) return;
-      if (actionNode.dataset.action === "toggle") return;
-      const task = state.tasks.find(row => row.id === actionNode.dataset.id);
-      if (!task) return;
-      const action = actionNode.dataset.action;
-      if (action === "delete") state.tasks = state.tasks.filter(row => row.id !== task.id);
-      if (action === "timer") {
-        state.selectedTaskId = task.id;
-        setTimerMinutes(task.estimatedMinutes || state.timerMinutes || 25);
-        setPage("timer");
-      }
-      if (action === "open") {
-        const url = task.canvasUrl || task.eventUrl;
-        if (url) window.open(url, "_blank", "noopener,noreferrer");
-      }
-      saveState();
-      render();
     });
-    document.body.addEventListener("change", event => {
-      const checkbox = event.target.closest("[data-action='toggle']");
-      if (!checkbox) return;
-      const task = state.tasks.find(row => row.id === checkbox.dataset.id);
-      if (!task) return;
-      if (checkbox.checked && isCanvasForceIncompleteTask(task)) {
-        checkbox.checked = false;
-        task.completed = false;
-        document.getElementById("timerStatus").textContent = task.forceIncompleteReason || "Canvas says this assignment is not complete yet.";
-      } else {
-        task.completed = checkbox.checked;
-        task.completedAt = task.completed ? new Date().toISOString() : "";
-      }
-      saveState();
-      publishWebsiteTasks();
-      render();
+    ["taskList", "selectedDayTasks"].forEach(id => {
+      const container = document.getElementById(id);
+      container?.addEventListener("click", handleTaskActionClick);
+      container?.addEventListener("change", handleTaskToggleChange);
     });
     document.getElementById("prevMonth").addEventListener("click", () => { selectedDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() - 1, 1); renderCalendar(); });
     document.getElementById("nextMonth").addEventListener("click", () => { selectedDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1); renderCalendar(); });
