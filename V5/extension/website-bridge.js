@@ -27,7 +27,13 @@ window.addEventListener("message", (event) => {
     });
   }
   if (event.data.type === "EPSTUDY_WEBSITE_TASKS") {
-    chrome.runtime.sendMessage({ type: "EPSTUDY_WEBSITE_TASKS", tasks: event.data.tasks || [], websiteVersion: event.data.websiteVersion || "" });
+    const message = {
+      type: "EPSTUDY_WEBSITE_TASKS",
+      tasks: event.data.tasks || [],
+      websiteVersion: event.data.websiteVersion || ""
+    };
+    if (Array.isArray(event.data.ignoredTaskKeys)) message.ignoredTaskKeys = event.data.ignoredTaskKeys;
+    chrome.runtime.sendMessage(message);
   }
   if (event.data.type === "EPSTUDY_VERSION_SELECTED") {
     chrome.runtime.sendMessage({ type: "EPSTUDY_VERSION_SELECTED", version: event.data.version || "", source: event.data.source || "" });

@@ -399,6 +399,11 @@
     return readTaskAttr(node?.dataset?.id || node?.closest?.(".task")?.dataset?.taskId || "");
   }
 
+  function eventElement(event) {
+    const target = event?.target;
+    return target instanceof Element ? target : target?.parentElement || null;
+  }
+
   function courseById(id) {
     return state.courses.find(course => course.id === id) || null;
   }
@@ -456,10 +461,10 @@
     applySimpleSkin();
     renderCosmeticsAccess();
     renderCourses();
-    renderTasks();
-    renderCalendar();
-    renderTimer();
-    renderCosmetics();
+    if (currentPage === "tasks") renderTasks();
+    if (currentPage === "calendar") renderCalendar();
+    if (currentPage === "timer") renderTimer();
+    if (currentPage === "cosmetics") renderCosmetics();
   }
 
   function renderCosmeticsAccess() {
@@ -643,7 +648,13 @@
   }
 
   function publishWebsiteTasks() {
-    window.postMessage({ type: "EPSTUDY_WEBSITE_TASKS", tasks: state.tasks, updatedAt: new Date().toISOString(), websiteVersion: EPSTUDY_APP_VERSION }, bridgeTargetOrigin());
+    window.postMessage({
+      type: "EPSTUDY_WEBSITE_TASKS",
+      tasks: state.tasks,
+      ignoredTaskKeys: state.ignoredTaskKeys || [],
+      updatedAt: new Date().toISOString(),
+      websiteVersion: EPSTUDY_APP_VERSION
+    }, bridgeTargetOrigin());
   }
 
   function isCanvasForceIncompleteTask(task) {
@@ -815,12 +826,15 @@
   }
 
   function handleTaskActionClick(event) {
-    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    const target = eventElement(event);
     if (!target) return;
     const actionNode = target.closest("[data-action]");
     if (!actionNode || actionNode.dataset.action === "toggle") return;
     const task = state.tasks.find(row => row.id === taskIdFromNode(actionNode));
     if (!task) return;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
     const action = actionNode.dataset.action;
     if (action === "delete") {
       rememberIgnoredTask(task);
@@ -840,11 +854,13 @@
   }
 
   function handleTaskToggleChange(event) {
-    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+    const target = eventElement(event);
     const checkbox = target?.closest("[data-action='toggle']");
     if (!checkbox) return;
     const task = state.tasks.find(row => row.id === taskIdFromNode(checkbox));
     if (!task) return;
+    event.stopPropagation();
+    event.stopImmediatePropagation?.();
     if (checkbox.checked && isCanvasForceIncompleteTask(task)) {
       checkbox.checked = false;
       task.completed = false;
@@ -888,8 +904,12 @@
       saveState();
       render();
     });
+    document.addEventListener("click", handleTaskActionClick, true);
+    document.addEventListener("change", handleTaskToggleChange, true);
     document.body.addEventListener("click", event => {
-      const skinNode = event.target.closest("[data-skin-id]");
+      const target = eventElement(event);
+      if (!target) return;
+      const skinNode = target.closest("[data-skin-id]");
       if (skinNode) {
         if (!isCosmeticsWindowOpen()) return;
         state.selectedSimpleSkin = skinNode.dataset.skinId;
@@ -897,8 +917,6 @@
         render();
         return;
       }
-      const target = event.target instanceof Element ? event.target : event.target?.parentElement;
-      if (!target) return;
       const dayNode = target.closest("[data-date]");
       if (dayNode) {
         selectedDate = new Date(`${dayNode.dataset.date}T12:00:00`);

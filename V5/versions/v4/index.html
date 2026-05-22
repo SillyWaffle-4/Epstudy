@@ -1948,7 +1948,13 @@
 
   function publishWebsiteTasksToExtension() {
     const tasks = state.tasks.filter(isActionableTask);
-    window.postMessage({ type: "EPSTUDY_WEBSITE_TASKS", tasks, updatedAt: new Date().toISOString(), websiteVersion: EPSTUDY_APP_VERSION }, bridgeTargetOrigin());
+    window.postMessage({
+      type: "EPSTUDY_WEBSITE_TASKS",
+      tasks,
+      ignoredTaskKeys: [...(state.ignoredTaskKeys || []), ...(state.foreverIgnoredTaskKeys || [])],
+      updatedAt: new Date().toISOString(),
+      websiteVersion: EPSTUDY_APP_VERSION
+    }, bridgeTargetOrigin());
   }
 
   function taskIgnoreKeys(task) {

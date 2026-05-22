@@ -94,13 +94,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   if (message.type === "EPSTUDY_WEBSITE_TASKS") {
     const websiteVersion = normalizeWebsiteVersion(message.websiteVersion);
-    chrome.storage.local.set({
+    const update = {
       websiteTasks: message.tasks || [],
       websiteTasksUpdatedAt: new Date().toISOString(),
       websiteTasksVersion: websiteVersion,
       activeWebsiteVersion: websiteVersion,
       activeWebsiteVersionUpdatedAt: new Date().toISOString()
-    })
+    };
+    if (Array.isArray(message.ignoredTaskKeys)) update.websiteIgnoredTaskKeys = normalizeIgnoredTaskKeys(message.ignoredTaskKeys);
+    chrome.storage.local.set(update)
       .then(getCache)
       .then((cache) => broadcastToEpstudy(cache).then(() => sendResponse({ ok: true, payload: cache })))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
@@ -155,10 +157,11 @@ async function resetEpstudyData() {
 }
 
 async function getCache() {
-  const data = await chrome.storage.local.get(["canvas", "teamsnap", "membean", "courses", "updatedAt", "sourceStatus", "teamSnapLinks", "websiteTasks"]);
+  const data = await chrome.storage.local.get(["canvas", "teamsnap", "membean", "courses", "updatedAt", "sourceStatus", "teamSnapLinks", "websiteTasks", "websiteIgnoredTaskKeys"]);
+  const ignoredTaskKeys = normalizeIgnoredTaskKeys(data.websiteIgnoredTaskKeys);
   return {
-    canvas: mergeWebsiteCompletionIntoRows(normalizeRows(data.canvas || [], "canvas"), data.websiteTasks || [], "canvas"),
-    teamsnap: mergeWebsiteCompletionIntoRows(normalizeRows(data.teamsnap || [], "teamsnap"), data.websiteTasks || [], "teamsnap"),
+    canvas: applyWebsiteIgnores(mergeWebsiteCompletionIntoRows(normalizeRows(data.canvas || [], "canvas"), data.websiteTasks || [], "canvas"), ignoredTaskKeys, "canvas"),
+    teamsnap: applyWebsiteIgnores(mergeWebsiteCompletionIntoRows(normalizeRows(data.teamsnap || [], "teamsnap"), data.websiteTasks || [], "teamsnap"), ignoredTaskKeys, "teamsnap"),
     membean: mergeWebsiteCompletionIntoRows(data.membean || [], data.websiteTasks || [], "membean"),
     courses: normalizeCanvasCourses(data.courses || []),
     teamSnapLinks: data.teamSnapLinks || [],
@@ -174,6 +177,39 @@ function taskForceIncomplete(task) {
 function mergeTaskCompletion(existing, incoming) {
   if (taskForceIncomplete(incoming)) return false;
   return Boolean(existing?.completed || incoming?.completed);
+}
+
+function normalizeIgnoredTaskKeys(keys) {
+  return Array.from(new Set((Array.isArray(keys) ? keys : []).map(key => String(key || "").trim()).filter(Boolean))).slice(-2500);
+}
+
+function websiteIgnoreKeysForRow(row, source) {
+  const keys = new Set();
+  const externalKey = String(row?.externalKey || "").trim();
+  const id = String(row?.id || "").trim();
+  if (externalKey) keys.add(`external:${externalKey}`);
+  if (id) keys.add(`id:${id}`);
+  if (source === "canvas") {
+    const assignmentId = canvasAssignmentId(row);
+    if (assignmentId) keys.add(`canvas-assignment:${assignmentId}`);
+  }
+  const courseId = String(row?.courseId || "").trim();
+  const dueDate = row?.dueDate || row?.due_at || row?.start_at || "";
+  const parsedDueDate = new Date(dueDate || "");
+  const dueKey = Number.isNaN(parsedDueDate.getTime()) ? String(dueDate || "") : parsedDueDate.toISOString();
+  const title = normalizeAssignmentTitle(row?.title || row?.name || "");
+  if (courseId && title && dueKey) keys.add(`fallback:${courseId}:${title}:${dueKey}`);
+  rowAliases(row, source).forEach(alias => keys.add(`alias:${alias}`));
+  return Array.from(keys);
+}
+
+function applyWebsiteIgnores(rows, ignoredKeys, source) {
+  const ignored = new Set(normalizeIgnoredTaskKeys(ignoredKeys));
+  if (!ignored.size) return rows;
+  return (Array.isArray(rows) ? rows : []).filter(row => {
+    if (taskForceIncomplete(row)) return true;
+    return !websiteIgnoreKeysForRow(row, source).some(key => ignored.has(key));
+  });
 }
 
 function mergeWebsiteCompletionIntoRows(rows, websiteTasks, source) {
