@@ -1,4 +1,4 @@
-// Shared EPStudy V2 content that is intentionally kept out of index.html.
+// Shared EPStudy content that is intentionally kept out of version pages.
 window.EPSTUDY_QUOTES = [
     { text: "Success is the sum of small efforts, repeated day in and day out.", author: "Robert Collier" },
     { text: "The secret to getting ahead is getting started.", author: "Mark Twain" },
