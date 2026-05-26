@@ -166,6 +166,10 @@
 <body>
 <div id="root"></div>
 
+<script>
+  try { localStorage.setItem("epstudy_v5_selected_version", "normal"); } catch {}
+  window.location.replace(`versions/v3/index.html${window.location.search || ""}${window.location.hash || ""}`);
+</script>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script>

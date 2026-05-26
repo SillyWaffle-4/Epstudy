@@ -55,8 +55,7 @@
   .eyebrow { margin: 0; letter-spacing: 0.1em; text-transform: uppercase; font-size: 0.75rem; font-weight: 600; color: var(--muted); }
   h1 { margin: 0; font-size: 1.5rem; line-height: 1.2; letter-spacing: -0.02em; font-weight: 800; color: var(--text-dark); }
   .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .version-switcher { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-md); background: color-mix(in srgb, var(--panel) 82%, var(--bg-gray)); color: var(--muted); font-size: 0.76rem; font-weight: 800; }
-  .version-switcher select { min-height: 30px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--text-dark); font-weight: 800; padding: 3px 8px; }
+  .config-code-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
   .kbd-hint { border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 6px; padding: 1px 6px; color: var(--muted); font-size: 0.72rem; font-weight: 800; background: var(--bg-gray); }
   
   /* Section Dividers */
@@ -173,9 +172,18 @@
   .dashboard-widget[hidden] { display: none !important; }
   .dashboard-widget-grid { align-items: stretch; }
   .dashboard-widget-grid.dashboard-editing { padding: 0.35rem; border: 1px dashed color-mix(in srgb, var(--navy-primary) 34%, var(--border)); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--panel) 64%, transparent); }
-  .dashboard-widget-grid.dashboard-editing .dashboard-widget { position: relative; cursor: grab; outline: 2px dashed color-mix(in srgb, var(--navy-primary) 28%, transparent); outline-offset: -5px; user-select: none; }
-  .dashboard-widget-grid.dashboard-editing .dashboard-widget.dragging { opacity: 0.56; transform: scale(0.99); }
+  .dashboard-widget-grid.dashboard-editing .dashboard-widget { position: relative; cursor: grab; outline: 2px solid color-mix(in srgb, var(--navy-primary) 28%, transparent); outline-offset: -5px; user-select: none; transition: opacity 0.16s ease, filter 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease; }
+  .dashboard-widget-grid.dashboard-editing .dashboard-widget.dragging { opacity: 0.72; box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 42%, transparent), var(--shadow-lg); }
+  .dashboard-widget-grid.dashboard-editing .dashboard-widget.dashboard-widget-muted { opacity: 0.42; filter: grayscale(0.55); }
+  .dashboard-widget-grid.dashboard-editing .dashboard-widget.dashboard-widget-swapped { animation: dashboardSwapFlash 0.42s ease; }
+  @keyframes dashboardSwapFlash { 0% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--gold) 62%, transparent), var(--shadow-lg); } 100% { box-shadow: var(--shadow-sm); } }
   .dashboard-widget-grid.dashboard-editing .dashboard-widget::before { content: "Drag"; position: absolute; top: 8px; right: 8px; z-index: 5; border: 1px solid var(--border); border-radius: 999px; padding: 0.18rem 0.52rem; background: color-mix(in srgb, var(--panel) 88%, var(--bg-gray)); color: var(--navy-primary); font-size: 0.68rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; box-shadow: var(--shadow-sm); pointer-events: none; }
+  .dashboard-widget-live-controls { display: none; position: relative; z-index: 7; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 0.8rem; padding: 0.55rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: color-mix(in srgb, var(--panel) 92%, var(--bg-gray)); box-shadow: var(--shadow-sm); cursor: default; }
+  .dashboard-widget-grid.dashboard-editing .dashboard-widget-live-controls { display: flex; }
+  .dashboard-widget-live-controls label { display: inline-flex; align-items: center; gap: 6px; color: var(--text-dark); font-weight: 800; font-size: 0.78rem; }
+  .dashboard-widget-size-buttons { display: inline-flex; gap: 4px; margin-left: auto; }
+  .dashboard-widget-size-buttons button { min-width: 34px; min-height: 30px; border: 1px solid var(--border); border-radius: 7px; background: var(--panel); color: var(--text-main); font-weight: 900; cursor: pointer; }
+  .dashboard-widget-size-buttons button.active { background: var(--navy-primary); border-color: var(--navy-primary); color: var(--primary-content); }
   .dashboard-widget-resize { display: none; position: absolute; top: 0; right: 0; z-index: 8; width: 22px; height: 100%; align-items: center; justify-content: center; cursor: ew-resize; touch-action: none; color: var(--navy-primary); }
   .dashboard-widget-resize::after { content: ""; width: 4px; height: 42px; border-radius: 999px; background: color-mix(in srgb, var(--navy-primary) 54%, var(--border)); box-shadow: -6px 0 0 color-mix(in srgb, var(--navy-primary) 24%, transparent); }
   .dashboard-widget-grid.dashboard-editing .dashboard-widget-resize { display: flex; }
@@ -644,7 +652,6 @@
       </div>
     </div>
     <div class="actions">
-      <label class="version-switcher" for="epstudyVersionSelect"><span>Version</span><select id="epstudyVersionSelect" aria-label="Switch EPStudy version" onchange="switchEpstudyVersion(this.value)"><option value="normal">Normal</option><option value="simple">Simple</option></select></label>
       <button id="quickSyncBtn" class="button primary" type="button">Sync</button>
       <button id="clearDoneBtn" class="button" type="button">Clear Done</button>
       <button id="tutorialBtn" class="button primary" type="button">Guide</button>
@@ -880,11 +887,19 @@
         </div>
         <div class="settings-card col-12">
           <h3>Dashboard Configuration</h3>
-          <p>Drag widgets into the order you want, choose their size, and turn dashboard sections on or off.</p>
+          <p>Open the live dashboard editor to show, hide, resize, and reorder widgets in place.</p>
           <div class="row" style="margin: 10px 0 4px;">
             <button id="openDashboardLayoutEditBtn" class="button primary" type="button" onclick="startDashboardLayoutEdit()">Edit On Dashboard</button>
           </div>
-          <div id="dashboardConfigList" class="dashboard-config-list" aria-label="Dashboard configuration"></div>
+        </div>
+        <div class="settings-card col-12">
+          <h3>Config Codes</h3>
+          <p>Enter a config code to unlock or switch special modes.</p>
+          <form id="configCodeForm" class="config-code-row">
+            <input id="configCodeInput" class="field" type="text" placeholder="Enter config code" autocomplete="off" />
+            <button class="button primary" type="submit">Submit</button>
+          </form>
+          <p id="configCodeStatus" class="mini-text" style="margin-top: 8px;"></p>
         </div>
       </div>
       <div style="margin-top: 1.5rem; text-align: center;">
@@ -1834,11 +1849,26 @@
     window.location.href = epstudyVersionHref(next);
   }
 
+  function submitConfigCode(value) {
+    const code = String(value || "").trim().toLowerCase();
+    const status = document.getElementById("configCodeStatus");
+    if (!code) {
+      if (status) status.textContent = "Enter a config code first.";
+      return;
+    }
+    if (code === "simple") {
+      if (status) status.textContent = "Opening Simple mode...";
+      switchEpstudyVersion("simple");
+      return;
+    }
+    if (status) status.textContent = "That config code is not active yet.";
+  }
+
   function initializeEpstudyVersionSwitcher() {
     const select = document.getElementById("epstudyVersionSelect");
+    publishEpstudyVersionSelection("init");
     if (!select) return;
     select.value = EPSTUDY_APP_VERSION;
-    publishEpstudyVersionSelection("init");
     select.addEventListener("change", () => switchEpstudyVersion(select.value));
   }
 
@@ -2853,10 +2883,18 @@
   }
 
   function ensureDashboardWidgetEditControls(widget) {
-    if (!widget.querySelector(".dashboard-widget-size-badge")) {
-      const badge = document.createElement("span");
-      badge.className = "dashboard-widget-size-badge";
-      widget.appendChild(badge);
+    let controls = widget.querySelector(".dashboard-widget-live-controls");
+    if (!controls) {
+      controls = document.createElement("div");
+      controls.className = "dashboard-widget-live-controls";
+      controls.innerHTML = `<label><input type="checkbox" data-dashboard-live-visible /> Show</label>
+        <div class="dashboard-widget-size-buttons" aria-label="Widget size">
+          <button type="button" data-dashboard-live-size="small">S</button>
+          <button type="button" data-dashboard-live-size="medium">M</button>
+          <button type="button" data-dashboard-live-size="wide">W</button>
+          <button type="button" data-dashboard-live-size="full">Full</button>
+        </div>`;
+      widget.insertBefore(controls, widget.firstChild);
     }
     if (!widget.querySelector(".dashboard-widget-resize")) {
       const handle = document.createElement("span");
@@ -2867,6 +2905,19 @@
       handle.addEventListener("pointerdown", startDashboardWidgetResize);
       widget.appendChild(handle);
     }
+    const id = widget.dataset.dashboardWidget;
+    const visible = state.dashboardLayout.visible[id] !== false;
+    const size = state.dashboardLayout.sizes[id] || "small";
+    const toggle = controls.querySelector("[data-dashboard-live-visible]");
+    if (toggle) {
+      toggle.dataset.dashboardLiveVisible = id;
+      toggle.checked = visible;
+    }
+    controls.querySelectorAll("[data-dashboard-live-size]").forEach(button => {
+      button.dataset.dashboardLiveWidget = id;
+      button.classList.toggle("active", button.dataset.dashboardLiveSize === size);
+      button.setAttribute("aria-pressed", String(button.dataset.dashboardLiveSize === size));
+    });
   }
 
   let dashboardResizeState = null;
@@ -2917,62 +2968,34 @@
     state.dashboardLayout = normalizeDashboardLayout(state.dashboardLayout);
     const grid = document.getElementById("dashboardWidgetGrid");
     if (grid) {
-      grid.classList.toggle("dashboard-editing", Boolean(state.dashboardLayoutEditing));
-      for (const id of state.dashboardLayout.order) {
+      const editing = Boolean(state.dashboardLayoutEditing);
+      const order = editing
+        ? [
+            ...state.dashboardLayout.order.filter(id => state.dashboardLayout.visible[id] !== false),
+            ...state.dashboardLayout.order.filter(id => state.dashboardLayout.visible[id] === false)
+          ]
+        : state.dashboardLayout.order;
+      grid.classList.toggle("dashboard-editing", editing);
+      for (const id of order) {
         const widget = grid.querySelector(`[data-dashboard-widget="${id}"]`);
         if (!widget) continue;
         grid.appendChild(widget);
         ensureDashboardWidgetEditControls(widget);
         applyDashboardWidgetSize(widget, state.dashboardLayout.sizes[id]);
-        widget.hidden = state.dashboardLayout.visible[id] === false;
-        widget.draggable = Boolean(state.dashboardLayoutEditing && state.dashboardLayout.visible[id] !== false);
+        const visible = state.dashboardLayout.visible[id] !== false;
+        widget.hidden = !editing && !visible;
+        widget.classList.toggle("dashboard-widget-muted", editing && !visible);
+        widget.draggable = Boolean(editing);
         widget.classList.remove("dragging");
       }
     }
     renderDashboardEditToolbar();
-    renderDashboardConfigList();
   }
 
   function renderDashboardEditToolbar() {
     const toolbar = document.getElementById("dashboardEditToolbar");
     if (!toolbar) return;
     toolbar.classList.toggle("visible", Boolean(state.dashboardLayoutEditing));
-  }
-
-  function renderDashboardConfigList() {
-    const list = document.getElementById("dashboardConfigList");
-    if (!list) return;
-    state.dashboardLayout = normalizeDashboardLayout(state.dashboardLayout);
-    const labelById = Object.fromEntries(DASHBOARD_WIDGETS.map(widget => [widget.id, widget.label]));
-    list.innerHTML = state.dashboardLayout.order.map(id => {
-      const visible = state.dashboardLayout.visible[id] !== false;
-      const size = state.dashboardLayout.sizes[id] || "small";
-      return `<div class="dashboard-config-item" draggable="true" data-dashboard-config-item="${id}">
-        <span class="dashboard-config-handle" aria-hidden="true">::</span>
-        <label class="dashboard-config-title">
-          <input type="checkbox" data-dashboard-widget-visible="${id}" ${visible ? "checked" : ""} />
-          <span>${escapeHtml(labelById[id] || id)}</span>
-        </label>
-        <label class="dashboard-config-size">
-          Size
-          <select class="field" data-dashboard-widget-size="${id}">
-            <option value="small" ${size === "small" ? "selected" : ""}>Small</option>
-            <option value="medium" ${size === "medium" ? "selected" : ""}>Medium</option>
-            <option value="wide" ${size === "wide" ? "selected" : ""}>Wide</option>
-            <option value="full" ${size === "full" ? "selected" : ""}>Full</option>
-          </select>
-        </label>
-      </div>`;
-    }).join("");
-  }
-
-  function updateDashboardOrderFromConfig() {
-    const list = document.getElementById("dashboardConfigList");
-    if (!list) return;
-    state.dashboardLayout.order = Array.from(list.querySelectorAll("[data-dashboard-config-item]"))
-      .map(item => item.dataset.dashboardConfigItem)
-      .filter(id => DASHBOARD_WIDGET_IDS.includes(id));
-    state.dashboardLayout = normalizeDashboardLayout(state.dashboardLayout);
   }
 
   function updateDashboardOrderFromGrid() {
@@ -2987,6 +3010,23 @@
       ...state.dashboardLayout.order.filter(id => !visibleOrder.includes(id))
     ];
     state.dashboardLayout = normalizeDashboardLayout(state.dashboardLayout);
+  }
+
+  function moveDashboardWidgetToEnd(id) {
+    state.dashboardLayout.order = [
+      ...state.dashboardLayout.order.filter(widgetId => widgetId !== id),
+      id
+    ].filter(widgetId => DASHBOARD_WIDGET_IDS.includes(widgetId));
+    state.dashboardLayout = normalizeDashboardLayout(state.dashboardLayout);
+  }
+
+  function flashDashboardWidget(id) {
+    const widget = document.querySelector(`[data-dashboard-widget="${CSS.escape(id)}"]`);
+    if (!widget) return;
+    widget.classList.remove("dashboard-widget-swapped");
+    void widget.offsetWidth;
+    widget.classList.add("dashboard-widget-swapped");
+    window.setTimeout(() => widget.classList.remove("dashboard-widget-swapped"), 450);
   }
 
   function startDashboardLayoutEdit() {
@@ -4290,9 +4330,12 @@
     if (!task) return;
     const source = String(task.source || "").toLowerCase();
     const url = taskExternalUrl(task);
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+      return;
+    }
     if (source !== "canvas" && source !== "teamsnap") {
-      if (url) window.open(url, "_blank", "noopener,noreferrer");
-      else navigate("tasks");
+      navigate("tasks");
       return;
     }
     const requestId = `open-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -5335,42 +5378,42 @@
       saveState(); renderAll();
     });
 
-    const dashboardConfigList = document.getElementById("dashboardConfigList");
-    dashboardConfigList?.addEventListener("change", (e) => {
-      const visible = e.target.closest("[data-dashboard-widget-visible]");
-      const size = e.target.closest("[data-dashboard-widget-size]");
-      state.dashboardLayout = normalizeDashboardLayout(state.dashboardLayout);
-      if (visible) state.dashboardLayout.visible[visible.dataset.dashboardWidgetVisible] = visible.checked;
-      if (size) state.dashboardLayout.sizes[size.dataset.dashboardWidgetSize] = size.value;
-      saveState(); renderAll();
-    });
-    dashboardConfigList?.addEventListener("dragstart", (e) => {
-      const item = e.target.closest("[data-dashboard-config-item]");
-      if (!item) return;
-      item.classList.add("dragging");
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", item.dataset.dashboardConfigItem || "");
-    });
-    dashboardConfigList?.addEventListener("dragend", (e) => {
-      e.target.closest("[data-dashboard-config-item]")?.classList.remove("dragging");
-      updateDashboardOrderFromConfig();
-      saveState(); renderAll();
-    });
-    dashboardConfigList?.addEventListener("dragover", (e) => {
+    document.getElementById("configCodeForm")?.addEventListener("submit", (e) => {
       e.preventDefault();
-      const dragging = dashboardConfigList.querySelector(".dragging");
-      const target = e.target.closest("[data-dashboard-config-item]");
-      if (!dragging || !target || dragging === target) return;
-      const rect = target.getBoundingClientRect();
-      const after = e.clientY > rect.top + rect.height / 2;
-      dashboardConfigList.insertBefore(dragging, after ? target.nextSibling : target);
+      submitConfigCode(document.getElementById("configCodeInput")?.value);
     });
 
     const dashboardWidgetGrid = document.getElementById("dashboardWidgetGrid");
+    dashboardWidgetGrid?.addEventListener("change", (e) => {
+      const toggle = e.target.closest("[data-dashboard-live-visible]");
+      if (!state.dashboardLayoutEditing || !toggle) return;
+      const id = toggle.dataset.dashboardLiveVisible;
+      if (!DASHBOARD_WIDGET_IDS.includes(id)) return;
+      state.dashboardLayout = normalizeDashboardLayout(state.dashboardLayout);
+      state.dashboardLayout.visible[id] = toggle.checked;
+      if (!toggle.checked) moveDashboardWidgetToEnd(id);
+      saveState();
+      renderDashboardLayout();
+      flashDashboardWidget(id);
+    });
+    dashboardWidgetGrid?.addEventListener("click", (e) => {
+      const sizeButton = e.target.closest("[data-dashboard-live-size]");
+      if (!state.dashboardLayoutEditing || !sizeButton) return;
+      const id = sizeButton.dataset.dashboardLiveWidget;
+      const size = sizeButton.dataset.dashboardLiveSize;
+      if (!DASHBOARD_WIDGET_IDS.includes(id) || !DASHBOARD_SIZE_CLASSES[size]) return;
+      e.preventDefault();
+      e.stopPropagation();
+      state.dashboardLayout = normalizeDashboardLayout(state.dashboardLayout);
+      state.dashboardLayout.sizes[id] = size;
+      saveState();
+      renderDashboardLayout();
+      flashDashboardWidget(id);
+    });
     dashboardWidgetGrid?.addEventListener("dragstart", (e) => {
       const widget = e.target.closest("[data-dashboard-widget]");
-      const interactive = e.target.closest("button, input, select, textarea, a, label, .dashboard-widget-resize");
-      if (!state.dashboardLayoutEditing || !widget || interactive || widget.hidden) {
+      const interactive = e.target.closest("button, input, select, textarea, a, label, .dashboard-widget-resize, .dashboard-widget-live-controls");
+      if (!state.dashboardLayoutEditing || !widget || interactive) {
         e.preventDefault();
         return;
       }
@@ -5381,14 +5424,17 @@
     dashboardWidgetGrid?.addEventListener("dragend", (e) => {
       e.target.closest("[data-dashboard-widget]")?.classList.remove("dragging");
       if (!state.dashboardLayoutEditing) return;
+      const id = e.target.closest("[data-dashboard-widget]")?.dataset.dashboardWidget;
       updateDashboardOrderFromGrid();
-      saveState(); renderAll();
+      saveState();
+      renderDashboardLayout();
+      if (id) flashDashboardWidget(id);
     });
     dashboardWidgetGrid?.addEventListener("dragover", (e) => {
       if (!state.dashboardLayoutEditing) return;
       const dragging = dashboardWidgetGrid.querySelector(".dashboard-widget.dragging");
       const target = e.target.closest("[data-dashboard-widget]");
-      if (!dragging || !target || dragging === target || target.hidden) return;
+      if (!dragging || !target || dragging === target) return;
       e.preventDefault();
       const rect = target.getBoundingClientRect();
       const after = e.clientY > rect.top + rect.height / 2 || (Math.abs(e.clientY - (rect.top + rect.height / 2)) < rect.height / 3 && e.clientX > rect.left + rect.width / 2);

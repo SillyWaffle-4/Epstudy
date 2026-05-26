@@ -30,7 +30,6 @@
   .eyebrow { margin: 0; color: var(--muted); font-size: 0.73rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
   h1 { margin: 0; font-size: clamp(1.35rem, 2vw, 1.8rem); letter-spacing: 0; }
   .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .version-switcher { display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); font-weight: 800; font-size: 0.76rem; background: #f8fafc; }
   select, input { min-height: 38px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--text); padding: 8px 10px; }
   .button, button { min-height: 38px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--text); font-weight: 800; padding: 8px 11px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
   .button:hover, button:hover { border-color: var(--navy); }
@@ -98,20 +97,13 @@
 <div class="shell">
   <header class="topbar">
     <div class="brand">
-      <img class="logo" src="../../shared/logo.png" alt="EPStudy logo" />
+      <img class="logo" data-shared-logo="logo.png" src="../../shared/logo.png" alt="EPStudy logo" />
       <div>
         <p class="eyebrow">EPStudy Simple</p>
         <h1>Tasks, Calendar, Timer</h1>
       </div>
     </div>
     <div class="actions">
-      <label class="version-switcher" for="epstudyVersionSelect">
-        <span>Version</span>
-        <select id="epstudyVersionSelect" aria-label="Switch EPStudy version">
-          <option value="normal">Normal</option>
-          <option value="simple">Simple</option>
-        </select>
-      </label>
       <button id="syncBtn" class="primary" type="button">Sync</button>
       <a class="button" href="../../index.html">Chooser</a>
     </div>
@@ -240,6 +232,16 @@
 
   function bridgeTargetOrigin() {
     return window.location.protocol === "file:" || window.location.origin === "null" ? "*" : window.location.origin;
+  }
+
+  function sharedAssetUrl(name) {
+    const marker = "/V5/";
+    const path = window.location.pathname;
+    if (window.location.origin !== "null" && path.includes(marker)) {
+      const root = path.slice(0, path.indexOf(marker) + marker.length);
+      return `${window.location.origin}${root}shared/${name}`;
+    }
+    return new URL(`../../shared/${name}`, document.baseURI).href;
   }
 
   const extensionSyncButtonLabels = {};
@@ -884,8 +886,13 @@
   }
 
   function registerEvents() {
-    document.getElementById("epstudyVersionSelect").value = EPSTUDY_APP_VERSION;
-    document.getElementById("epstudyVersionSelect").addEventListener("change", event => switchVersion(event.target.value));
+    document.querySelectorAll("[data-shared-logo]").forEach(img => {
+      img.src = sharedAssetUrl(img.dataset.sharedLogo || "logo.png");
+      img.onerror = () => {
+        img.removeAttribute("src");
+        img.alt = "EPStudy";
+      };
+    });
     document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => setPage(tab.dataset.page)));
     document.getElementById("syncBtn").addEventListener("click", requestExtensionSync);
     document.getElementById("taskFilter").addEventListener("change", event => { taskFilter = event.target.value; renderTasks(); });
