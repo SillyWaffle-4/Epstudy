@@ -429,12 +429,17 @@
   .eps-block.active { background: var(--gold); border-color: var(--gold); border-left-color: var(--navy-primary); color: #111827; box-shadow: 0 10px 24px -18px rgba(0, 0, 0, 0.45); }
   .eps-block.active strong, .eps-block.active .mini-text { color: #111827; }
   .eps-block strong { display: block; color: var(--navy-primary); font-size: 0.95rem; }
-  .eps-lunch-card { border: 1px solid color-mix(in srgb, var(--gold) 44%, var(--border)); border-radius: var(--radius-lg); background: linear-gradient(180deg, color-mix(in srgb, var(--panel) 92%, var(--gold)), var(--panel)); padding: 1rem; display: grid; gap: 0.75rem; align-items: start; position: sticky; top: 1rem; box-shadow: var(--shadow-sm); }
-  .eps-lunch-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; color: var(--text-dark); }
-  .eps-lunch-heading strong { color: var(--navy-primary); font-size: 1rem; }
-  .eps-lunch-date { color: var(--muted); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
-  .lunch-menu-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-  .lunch-menu-list li { padding: 7px 9px; border: 1px solid var(--border); border-radius: 7px; background: color-mix(in srgb, var(--panel) 84%, var(--bg-gray)); color: var(--text-dark); font-size: 0.84rem; font-weight: 700; line-height: 1.25; }
+  .eps-lunch-card { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--panel); padding: 1rem; display: grid; gap: 0.85rem; align-items: start; position: sticky; top: 1rem; box-shadow: var(--shadow-sm); border-top: 4px solid var(--gold); }
+  .eps-lunch-card > div:first-child { display: grid; gap: 0.65rem; }
+  .eps-lunch-title { display: inline-flex; align-items: center; gap: 8px; color: var(--navy-primary); font-size: 1rem; font-weight: 900; }
+  .eps-lunch-title::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 24%, transparent); }
+  .eps-lunch-heading { display: grid; gap: 2px; color: var(--text-dark); }
+  .eps-lunch-heading strong { color: var(--text-dark); font-size: 1.05rem; line-height: 1.15; }
+  .eps-lunch-date { color: var(--muted); font-size: 0.72rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; }
+  .lunch-menu-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+  .lunch-menu-list li { position: relative; padding: 8px 10px 8px 22px; border: 1px solid var(--border); border-radius: var(--radius-md); background: color-mix(in srgb, var(--panel) 88%, var(--bg-gray)); color: var(--text-dark); font-size: 0.86rem; font-weight: 750; line-height: 1.25; }
+  .lunch-menu-list li::before { content: ""; position: absolute; left: 10px; top: 14px; width: 5px; height: 5px; border-radius: 50%; background: var(--navy-primary); }
+  .lunch-menu-list li:first-child { background: color-mix(in srgb, var(--gold) 14%, var(--panel)); border-color: color-mix(in srgb, var(--gold) 44%, var(--border)); }
   .lunch-menu-empty { border: 1px dashed var(--border); border-radius: 8px; padding: 10px; color: var(--muted); background: var(--bg-gray); font-size: 0.84rem; }
   .skin-choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
   .skin-choice { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; background: var(--panel); cursor: pointer; text-align: left; font-weight: 800; color: var(--text-dark); min-height: 74px; display: grid; align-content: space-between; }
@@ -1062,7 +1067,7 @@
       <section class="eps-day-section">
         <div class="eps-lunch-card">
           <div>
-            <strong style="color: var(--navy-primary);">Lunch</strong>
+            <strong class="eps-lunch-title">Lunch</strong>
             <div id="lunchSummary" class="mini-text">Checking lunch calendar...</div>
           </div>
           <button id="refreshScheduleBtn" class="button" type="button">Refresh Schedule</button>
@@ -1823,7 +1828,15 @@
   function epstudyVersionHref(version) {
     const target = normalizeEpstudyVersion(version);
     const folder = target === "simple" ? "simple" : "v3";
-    const suffix = `${window.location.search || ""}${window.location.hash || ""}`;
+    const params = new URLSearchParams(window.location.search);
+    if (target === "simple") {
+      const simplePages = ["tasks", "calendar", "timer", "cosmetics"];
+      if (!simplePages.includes(params.get("page"))) params.set("page", "tasks");
+    } else if (!PAGE_LABELS[params.get("page")]) {
+      params.set("page", "dashboard");
+    }
+    const query = params.toString();
+    const suffix = `${query ? `?${query}` : ""}${window.location.hash || ""}`;
     if (/\/versions\/(?:v[234]|simple)\/(?:index\.html)?$/i.test(window.location.pathname)) return `../${folder}/index.html${suffix}`;
     return `versions/${folder}/index.html${suffix}`;
   }
@@ -1929,6 +1942,10 @@
       addNotification("Cosmetics open outside active class periods.", "warning", 2500);
       page = "dashboard";
     }
+    if (page !== "dashboard" && state.dashboardLayoutEditing) {
+      state.dashboardLayoutEditing = false;
+      renderDashboardLayout();
+    }
     state.currentPage = page;
     if (page === "calendar") {
       cleanupCalendarOverlaps(true);
@@ -1956,6 +1973,7 @@
       }
     }
     saveState();
+    renderAll();
   }
 
   window.addEventListener("popstate", (e) => {
@@ -4152,14 +4170,15 @@
   function renderLunchSummary(summary, dateLabel = lunchDateLabel(scheduleInfoDateKey())) {
     const label = document.getElementById("lunchSummary");
     if (!label) return;
+    const messageOnly = /not found|could not|unavailable|timed out|failed/i.test(String(summary || ""));
     const items = lunchMenuItems(summary);
     const date = escapeHtml(dateLabel || "");
-    if (!items.length) {
+    if (messageOnly || !items.length) {
       label.innerHTML = `<div class="lunch-menu-empty">${escapeHtml(summary || "Lunch menu not found for this date.")}</div>`;
       return;
     }
     label.innerHTML = `
-      <div class="eps-lunch-heading"><strong>Menu</strong><span class="eps-lunch-date">${date}</span></div>
+      <div class="eps-lunch-heading"><span class="eps-lunch-date">${date}</span><strong>Menu</strong></div>
       <ul class="lunch-menu-list">${items.map(item => `<li>${escapeHtml(item)}</li>`).join("")}</ul>
     `;
   }
@@ -4175,11 +4194,14 @@
     try {
       let text = "";
       try {
-        const res = await fetch(LUNCH_ICAL_URL);
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 2500);
+        const res = await fetch(LUNCH_ICAL_URL, { signal: controller.signal });
+        window.clearTimeout(timeout);
         if (!res.ok) throw new Error("Lunch calendar unavailable");
         text = await res.text();
       } catch {
-        text = await fetchTextViaExtension(LUNCH_ICAL_URL);
+        text = await fetchTextViaExtension(LUNCH_ICAL_URL, 2500);
       }
       const events = parseLunchEvents(text);
       const exactLunch = events.find(event => event.dateKey === dateKey);
@@ -4923,14 +4945,21 @@
 
   function renderAll() {
     if (removeTasksWithoutRealCourse(false)) saveState();
+    const page = state.currentPage || "dashboard";
+    const onDashboard = page === "dashboard";
+    const onTasks = page === "tasks";
+    const onTimer = page === "timer";
+    const onCalendar = page === "calendar";
+    const onCosmetics = page === "cosmetics";
+    const onSettings = page === "settings";
     document.body.classList.remove(...SKIN_IDS.map(id => `skin-${id}`));
     if (state.skinsVisible && state.selectedSkin) document.body.classList.add(`skin-${state.selectedSkin}`);
     applySkinBackground();
     document.body.classList.toggle("minimalist", Boolean(state.minimalist));
     const mt = document.getElementById("minimalToggle"); if (mt) mt.textContent = `Minimalist: ${state.minimalist ? "On" : "Off"}`;
     
-    renderSkinChoices();
-    syncSkinLibraryToggle();
+    if (onCosmetics) renderSkinChoices();
+    if (onCosmetics || onSettings) syncSkinLibraryToggle();
     syncCosmeticsAccess();
     updateSkinEffect();
     
@@ -4941,13 +4970,15 @@
     const tse = document.getElementById("teamSnapEnabled"); if (tse) tse.checked = Boolean(state.teamSnapEnabled);
     const sds = document.getElementById("schoolDivisionSelect"); if (sds) sds.value = state.schoolDivision;
     syncGuideSetupControls();
-    syncMusicSettings();
+    if (onSettings || onTimer || onDashboard) syncMusicSettings();
 
-    const coHtml = visibleCourses().map(c => `<option value="${c.id}">${escapeHtml(c.name)}${c.code?` (${escapeHtml(c.code)})`:""}</option>`).join("");
-    const tc = document.getElementById("taskCourse"); if (tc) tc.innerHTML = coHtml;
+    if (onTasks || onSettings) {
+      const coHtml = visibleCourses().map(c => `<option value="${c.id}">${escapeHtml(c.name)}${c.code?` (${escapeHtml(c.code)})`:""}</option>`).join("");
+      const tc = document.getElementById("taskCourse"); if (tc) tc.innerHTML = coHtml;
+    }
     
     const clist = document.getElementById("courseList");
-    if (clist) {
+    if (clist && onSettings) {
       clist.className = "course-list-grid";
       const shownCourses = visibleCourses();
       clist.innerHTML = shownCourses.length ? shownCourses.map(c => `<div class="course-row"><span><input type="color" value="${c.color}" data-id="${c.id}" class="course-color-swatch" style="border:none;background:none;width:20px;height:20px;padding:0;cursor:pointer;vertical-align:middle;margin-right:10px;" /><span style="font-weight:600">${escapeHtml(c.name)}</span> ${c.code?`<span class="mini-text">(${escapeHtml(c.code)})</span>`:""}</span><button class="icon-button" data-action="delete-course" data-id="${c.id}">✕</button></div>`).join("") : "<p class='empty'>No courses added.</p>";
@@ -4956,7 +4987,7 @@
 
 
     const sd = document.getElementById("scheduleDay");
-    if (sd) {
+    if (sd && onSettings) {
         const d = Number(sd.value);
         const ws = getDayWindows(d);
         const ssl = document.getElementById("scheduleSetList");
@@ -4967,9 +4998,11 @@
     if (fbe) fbe.checked = Boolean(state.focusBlockerEnabled);
     const bs = document.getElementById("blockerStatus");
     if (bs) bs.textContent = state.focusBlockerEnabled ? "Focus Shield active." : "Focus Shield is off.";
-    renderBlocklist();
-    renderDashboardSubtitle();
-    renderDashboardLayout();
+    if (onSettings) renderBlocklist();
+    if (onDashboard) {
+      renderDashboardSubtitle();
+      renderDashboardLayout();
+    }
 
     const extStatus = document.getElementById("extensionSyncStatus");
     if (extStatus && state.extensionSync.lastSyncAt) {
@@ -4982,21 +5015,23 @@
     const mq = document.getElementById("motivationalQuote"); if (mq) mq.textContent = `"${quoteObj.text}"`;
     const qa = document.getElementById("quoteAuthor"); if (qa) qa.textContent = `- ${quoteObj.author}`;
 
-    syncTaskFilterControls();
-    renderWorkspaceMetrics();
-    renderWorkspaceHealth();
-    renderTodayPlan();
-    renderHeaderStats(); renderScheduleCard(); renderQuoteCard(); renderFocusStats(); renderCourseProgress(); renderQuickTasks(); renderTaskList(); renderSmartCard(); renderMembeanCard(); renderCalendar(); updateTimerUi();
-    renderFullCalendar();
-    renderEpsDayInfo();
-    notifyUpcomingTeamSnapEvents();
-    renderNotifications(); updateAllAssignmentsDisplay(); initPageSettings();
-    
-    // Render task list for Tasks page (same as dashboard)
-    const tasksPageList = document.getElementById("taskList");
-    if (tasksPageList && state.currentPage === "tasks") {
-      renderTaskList();
+    if (onTasks) syncTaskFilterControls();
+    if (onDashboard || onTasks || onSettings) renderWorkspaceMetrics();
+    if (onDashboard || onSettings) renderWorkspaceHealth();
+    if (onDashboard) {
+      renderTodayPlan();
+      renderHeaderStats(); renderScheduleCard(); renderQuoteCard(); renderFocusStats(); renderCourseProgress(); renderQuickTasks(); renderSmartCard(); renderMembeanCard(); renderCalendar();
     }
+    if (onTasks) renderTaskList();
+    if (onDashboard || onTimer) updateTimerUi();
+    if (onCalendar) {
+      renderFullCalendar();
+      renderEpsDayInfo();
+      updateAllAssignmentsDisplay();
+    }
+    notifyUpcomingTeamSnapEvents();
+    renderNotifications();
+    if (onSettings) initPageSettings();
   }
 
   function addNotification(message, type = "info", duration = 5000) {
