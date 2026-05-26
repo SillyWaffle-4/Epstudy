@@ -172,6 +172,13 @@
   .dashboard-widget { min-width: 0; }
   .dashboard-widget[hidden] { display: none !important; }
   .dashboard-widget-grid { align-items: stretch; }
+  .dashboard-widget-grid.dashboard-editing { padding: 0.35rem; border: 1px dashed color-mix(in srgb, var(--navy-primary) 34%, var(--border)); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--panel) 64%, transparent); }
+  .dashboard-widget-grid.dashboard-editing .dashboard-widget { position: relative; cursor: grab; outline: 2px dashed color-mix(in srgb, var(--navy-primary) 28%, transparent); outline-offset: -5px; user-select: none; }
+  .dashboard-widget-grid.dashboard-editing .dashboard-widget.dragging { opacity: 0.56; transform: scale(0.99); }
+  .dashboard-widget-grid.dashboard-editing .dashboard-widget::before { content: "Drag"; position: absolute; top: 8px; right: 8px; z-index: 5; border: 1px solid var(--border); border-radius: 999px; padding: 0.18rem 0.52rem; background: color-mix(in srgb, var(--panel) 88%, var(--bg-gray)); color: var(--navy-primary); font-size: 0.68rem; font-weight: 900; letter-spacing: 0.04em; text-transform: uppercase; box-shadow: var(--shadow-sm); pointer-events: none; }
+  .dashboard-edit-toolbar { display: none; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 0.85rem; padding: 0.8rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--panel) 88%, var(--bg-gray)); box-shadow: var(--shadow-sm); }
+  .dashboard-edit-toolbar.visible { display: flex; }
+  .dashboard-edit-toolbar strong { color: var(--text-dark); margin-right: auto; }
   .dashboard-widget[data-dashboard-widget="calendar"] { align-self: start; }
   
   .panel.hero-panel { background: var(--navy-primary); color: var(--primary-content); border: 1px solid var(--navy-primary); }
@@ -657,6 +664,11 @@
   <h2 class="section-title">Today
     <span id="dashboardSubtitle" style="font-size: 0.85rem; font-weight: 500; color: var(--muted); border: none;">One place to start.</span>
   </h2>
+  <div id="dashboardEditToolbar" class="dashboard-edit-toolbar" aria-live="polite">
+    <strong>Dashboard layout edit</strong>
+    <button id="dashboardEditDoneBtn" class="button primary" type="button" onclick="finishDashboardLayoutEdit()">Done</button>
+    <button id="dashboardEditResetBtn" class="button" type="button" onclick="resetDashboardLayoutEdit()">Reset Layout</button>
+  </div>
   <section id="dashboardWidgetGrid" class="grid dashboard-widget-grid" aria-label="Dashboard widgets">
     <article class="panel col-8 dashboard-widget" data-dashboard-widget="today">
       <div class="calendar-top" style="margin-bottom: 0;">
@@ -864,6 +876,9 @@
         <div class="settings-card col-12">
           <h3>Dashboard Configuration</h3>
           <p>Drag widgets into the order you want, choose their size, and turn dashboard sections on or off.</p>
+          <div class="row" style="margin: 10px 0 4px;">
+            <button id="openDashboardLayoutEditBtn" class="button primary" type="button" onclick="startDashboardLayoutEdit()">Edit On Dashboard</button>
+          </div>
           <div id="dashboardConfigList" class="dashboard-config-list" aria-label="Dashboard configuration"></div>
         </div>
       </div>
@@ -1587,6 +1602,7 @@
       dashboardExpansionSections: {},
       dashboardExpandedSections: {},
       dashboardLayout: defaultDashboardLayout(),
+      dashboardLayoutEditing: false,
       skinLibraryOpen: true
     };
   }
@@ -1691,6 +1707,7 @@
       merged.lunchItems = typeof merged.lunchItems === "object" && merged.lunchItems ? merged.lunchItems : {};
       merged.lastCourseResyncAt = typeof merged.lastCourseResyncAt === "string" ? merged.lastCourseResyncAt : null;
       merged.dashboardLayout = normalizeDashboardLayout(merged.dashboardLayout);
+      merged.dashboardLayoutEditing = Boolean(merged.dashboardLayoutEditing);
       merged.skinLibraryOpen = true;
       merged.dashboardSections = typeof merged.dashboardSections === "object" && merged.dashboardSections ? { ...DEFAULT_DASHBOARD_SECTIONS, ...merged.dashboardSections } : { ...DEFAULT_DASHBOARD_SECTIONS };
       merged.dashboardExpansionSections = typeof merged.dashboardExpansionSections === "object" && merged.dashboardExpansionSections ? merged.dashboardExpansionSections : {};
@@ -2810,6 +2827,7 @@
     state.dashboardLayout = normalizeDashboardLayout(state.dashboardLayout);
     const grid = document.getElementById("dashboardWidgetGrid");
     if (grid) {
+      grid.classList.toggle("dashboard-editing", Boolean(state.dashboardLayoutEditing));
       for (const id of state.dashboardLayout.order) {
         const widget = grid.querySelector(`[data-dashboard-widget="${id}"]`);
         if (!widget) continue;
@@ -2817,9 +2835,18 @@
         Object.values(DASHBOARD_SIZE_CLASSES).forEach(cls => widget.classList.remove(cls));
         widget.classList.add(DASHBOARD_SIZE_CLASSES[state.dashboardLayout.sizes[id]] || "col-4");
         widget.hidden = state.dashboardLayout.visible[id] === false;
+        widget.draggable = Boolean(state.dashboardLayoutEditing && state.dashboardLayout.visible[id] !== false);
+        widget.classList.remove("dragging");
       }
     }
+    renderDashboardEditToolbar();
     renderDashboardConfigList();
+  }
+
+  function renderDashboardEditToolbar() {
+    const toolbar = document.getElementById("dashboardEditToolbar");
+    if (!toolbar) return;
+    toolbar.classList.toggle("visible", Boolean(state.dashboardLayoutEditing));
   }
 
   function renderDashboardConfigList() {
@@ -2856,6 +2883,41 @@
       .map(item => item.dataset.dashboardConfigItem)
       .filter(id => DASHBOARD_WIDGET_IDS.includes(id));
     state.dashboardLayout = normalizeDashboardLayout(state.dashboardLayout);
+  }
+
+  function updateDashboardOrderFromGrid() {
+    const grid = document.getElementById("dashboardWidgetGrid");
+    if (!grid) return;
+    state.dashboardLayout = normalizeDashboardLayout(state.dashboardLayout);
+    const visibleOrder = Array.from(grid.querySelectorAll("[data-dashboard-widget]"))
+      .map(widget => widget.dataset.dashboardWidget)
+      .filter(id => DASHBOARD_WIDGET_IDS.includes(id));
+    state.dashboardLayout.order = [
+      ...visibleOrder,
+      ...state.dashboardLayout.order.filter(id => !visibleOrder.includes(id))
+    ];
+    state.dashboardLayout = normalizeDashboardLayout(state.dashboardLayout);
+  }
+
+  function startDashboardLayoutEdit() {
+    state.dashboardLayoutEditing = true;
+    saveState();
+    navigate("dashboard");
+    renderAll();
+  }
+
+  function finishDashboardLayoutEdit() {
+    state.dashboardLayoutEditing = false;
+    saveState();
+    renderAll();
+  }
+
+  function resetDashboardLayoutEdit() {
+    state.dashboardLayout = defaultDashboardLayout();
+    state.dashboardLayoutEditing = false;
+    saveState();
+    renderAll();
+    addNotification("Dashboard layout reset.", "info", 1800);
   }
 
   function taskPriorityValue(task, ref = new Date()) {
@@ -5195,6 +5257,35 @@
       const rect = target.getBoundingClientRect();
       const after = e.clientY > rect.top + rect.height / 2;
       dashboardConfigList.insertBefore(dragging, after ? target.nextSibling : target);
+    });
+
+    const dashboardWidgetGrid = document.getElementById("dashboardWidgetGrid");
+    dashboardWidgetGrid?.addEventListener("dragstart", (e) => {
+      const widget = e.target.closest("[data-dashboard-widget]");
+      const interactive = e.target.closest("button, input, select, textarea, a, label");
+      if (!state.dashboardLayoutEditing || !widget || interactive || widget.hidden) {
+        e.preventDefault();
+        return;
+      }
+      widget.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", widget.dataset.dashboardWidget || "");
+    });
+    dashboardWidgetGrid?.addEventListener("dragend", (e) => {
+      e.target.closest("[data-dashboard-widget]")?.classList.remove("dragging");
+      if (!state.dashboardLayoutEditing) return;
+      updateDashboardOrderFromGrid();
+      saveState(); renderAll();
+    });
+    dashboardWidgetGrid?.addEventListener("dragover", (e) => {
+      if (!state.dashboardLayoutEditing) return;
+      const dragging = dashboardWidgetGrid.querySelector(".dashboard-widget.dragging");
+      const target = e.target.closest("[data-dashboard-widget]");
+      if (!dragging || !target || dragging === target || target.hidden) return;
+      e.preventDefault();
+      const rect = target.getBoundingClientRect();
+      const after = e.clientY > rect.top + rect.height / 2 || (Math.abs(e.clientY - (rect.top + rect.height / 2)) < rect.height / 3 && e.clientX > rect.left + rect.width / 2);
+      dashboardWidgetGrid.insertBefore(dragging, after ? target.nextSibling : target);
     });
 
 
