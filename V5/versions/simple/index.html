@@ -246,6 +246,8 @@
 
   const extensionSyncButtonLabels = {};
   let extensionSyncFallbackTimer = null;
+  let websiteTasksPublishTimer = null;
+  let handlingExtensionPayload = false;
 
   function setExtensionSyncing(active) {
     ["syncBtn", "extensionSyncBtn", "quickSyncBtn"].forEach(id => {
@@ -319,7 +321,15 @@
 
   function saveState() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
-    publishWebsiteTasks();
+  }
+
+  function queueWebsiteTasksPublish() {
+    if (handlingExtensionPayload) return;
+    if (websiteTasksPublishTimer) window.clearTimeout(websiteTasksPublishTimer);
+    websiteTasksPublishTimer = window.setTimeout(() => {
+      websiteTasksPublishTimer = null;
+      publishWebsiteTasks();
+    }, 120);
   }
 
   function normalizeCourses(courses) {
@@ -650,7 +660,7 @@
     timerRemaining = timerTotal;
     document.getElementById("timerStatus").textContent = "Session complete.";
     saveState();
-    publishWebsiteTasks();
+    queueWebsiteTasksPublish();
     render();
   }
 
@@ -821,15 +831,20 @@
 
   function handleExtensionPayload(payload) {
     if (!payload || typeof payload !== "object") return;
-    upsertCanvasCourses(payload.courses || payload.canvasCourses || []);
-    resolveUnfilteredCanvasTasks();
-    upsertTasks(payload.canvas || [], "canvas");
-    resolveUnfilteredCanvasTasks();
-    upsertTasks(payload.teamsnap || [], "teamsnap");
-    recordMembeanProgress(payload.membean);
-    state.tasks = state.tasks.filter(task => String(task?.source || "").toLowerCase() !== "membean");
-    saveState();
-    render();
+    handlingExtensionPayload = true;
+    try {
+      upsertCanvasCourses(payload.courses || payload.canvasCourses || []);
+      resolveUnfilteredCanvasTasks();
+      upsertTasks(payload.canvas || [], "canvas");
+      resolveUnfilteredCanvasTasks();
+      upsertTasks(payload.teamsnap || [], "teamsnap");
+      recordMembeanProgress(payload.membean);
+      state.tasks = state.tasks.filter(task => String(task?.source || "").toLowerCase() !== "membean");
+      saveState();
+      render();
+    } finally {
+      handlingExtensionPayload = false;
+    }
   }
 
   function handleTaskActionClick(event) {
@@ -848,6 +863,7 @@
     if (action === "delete") {
       rememberIgnoredTask(task);
       state.tasks = state.tasks.filter(row => row.id !== task.id);
+      queueWebsiteTasksPublish();
     }
     if (action === "timer") {
       state.selectedTaskId = task.id;
@@ -881,7 +897,7 @@
       task.completedAt = task.completed ? new Date().toISOString() : "";
     }
     saveState();
-    publishWebsiteTasks();
+    queueWebsiteTasksPublish();
     render();
   }
 
@@ -918,6 +934,7 @@
       document.getElementById("taskDate").value = isoDate(new Date());
       document.getElementById("taskMinutes").value = "25";
       saveState();
+      queueWebsiteTasksPublish();
       render();
     });
     document.body.addEventListener("click", event => {

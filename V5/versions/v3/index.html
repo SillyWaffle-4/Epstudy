@@ -588,6 +588,15 @@
   body.skin-snow { background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 45%, #ffffff 100%); --bg-gray: rgba(248, 250, 252, 0.82); --panel: rgba(255, 255, 255, 0.9); --text-main: #475569; --text-dark: #1e293b; --muted: #64748b; --border: rgba(148, 163, 184, 0.25); --navy-primary: #3b82f6; --primary-content: #ffffff; --gold: #93c5fd; }
   body.skin-ember { background: linear-gradient(135deg, #1f130c 0%, #3b1f12 55%, #111827 100%); --bg-gray: rgba(67, 32, 13, 0.55); --panel: rgba(38, 24, 18, 0.9); --text-main: #fed7aa; --text-dark: #fff7ed; --muted: #fdba74; --border: rgba(251, 146, 60, 0.24); --navy-primary: #fb923c; --primary-content: #1f130c; --gold: #facc15; }
   body.skin-bloom { background: linear-gradient(135deg, #fdf2f8 0%, #dcfce7 46%, #eef2ff 100%); --bg-gray: rgba(255, 255, 255, 0.66); --panel: rgba(255, 255, 255, 0.88); --text-main: #475569; --text-dark: #283344; --muted: #7c3aed; --border: rgba(124, 58, 237, 0.18); --navy-primary: #7c3aed; --primary-content: #ffffff; --gold: #22c55e; }
+  body.skin-pixel-ocean-morning { background: radial-gradient(circle at 82px 70px, #fff176 0 22px, transparent 23px), linear-gradient(#7dd3fc 0 38%, #38bdf8 38% 55%, #0ea5e9 55% 69%, #22c55e 69% 73%, #7c4a24 73% 100%); --bg-gray: rgba(219, 234, 254, 0.86); --panel: rgba(255, 255, 255, 0.9); --text-main: #1e3a5f; --text-dark: #102a43; --muted: #0369a1; --border: rgba(3, 105, 161, 0.24); --navy-primary: #0284c7; --primary-content: #ffffff; --gold: #facc15; }
+  body.skin-pixel-land-morning { background: radial-gradient(circle at 84px 72px, #fde047 0 22px, transparent 23px), linear-gradient(#93c5fd 0 46%, #bfdbfe 46% 58%, #22c55e 58% 65%, #16a34a 65% 69%, #8b5a2b 69% 100%); --bg-gray: rgba(240, 253, 244, 0.86); --panel: rgba(255, 255, 255, 0.9); --text-main: #36543d; --text-dark: #102a1b; --muted: #15803d; --border: rgba(34, 197, 94, 0.26); --navy-primary: #16a34a; --primary-content: #ffffff; --gold: #eab308; }
+  body.skin-pixel-land-night { background: radial-gradient(circle at 80px 70px, #f8fafc 0 18px, transparent 19px), linear-gradient(#111827 0 50%, #1e3a8a 50% 60%, #14532d 60% 67%, #166534 67% 70%, #5f3b1d 70% 100%); --bg-gray: rgba(15, 23, 42, 0.78); --panel: rgba(17, 24, 39, 0.88); --text-main: #cbd5e1; --text-dark: #f8fafc; --muted: #86efac; --border: rgba(134, 239, 172, 0.22); --navy-primary: #22c55e; --primary-content: #03130a; --gold: #fde68a; }
+  body.skin-pixel-ocean-morning, body.skin-pixel-land-morning, body.skin-pixel-land-night { background-size: 96px 96px, 100% 100%; }
+  body.skin-pixel-ocean-morning .panel, body.skin-pixel-land-morning .panel, body.skin-pixel-land-night .panel { box-shadow: 8px 8px 0 color-mix(in srgb, var(--navy-primary) 16%, transparent); }
+  body.secret-pixel-enabled, body.secret-pixel-enabled * { image-rendering: pixelated; border-radius: 0 !important; }
+  body.secret-pixel-enabled { font-family: "Courier New", monospace; }
+  body.secret-pixel-enabled::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 2147483646; opacity: 0.18; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.28) 0 1px, transparent 1px 6px), repeating-linear-gradient(90deg, rgba(0,0,0,0.18) 0 1px, transparent 1px 6px); mix-blend-mode: multiply; }
+  body.secret-pixel-enabled .panel, body.secret-pixel-enabled .button, body.secret-pixel-enabled .field, body.secret-pixel-enabled .task-item, body.secret-pixel-enabled .calendar-task { box-shadow: 4px 4px 0 rgba(15, 23, 42, 0.18); }
   body.skin-midnight .panel, body.skin-cyber .panel, body.skin-matrix .panel, body.skin-ember .panel { backdrop-filter: blur(14px); }
   body.skin-matrix #fxCanvas, body.skin-snow #fxCanvas, body.skin-ember #fxCanvas, body.skin-bloom #fxCanvas, body.skin-midnight #fxCanvas { opacity: 0.72; }
 
@@ -1141,6 +1150,7 @@
               <option value="cafe">Cafe</option>
               <option value="piano">Soft Piano</option>
               <option value="ocean">Ocean</option>
+              <option value="village">Village Fete</option>
               <option value="imported">Imported audio</option>
             </select>
           </label>
@@ -1523,7 +1533,10 @@
     { id: "cyber", name: "Cyber", detail: "Sharp neon focus", category: "dark", swatches: ["#22d3ee", "#f0abfc"], effect: "meteor" },
     { id: "matrix", name: "Matrix", detail: "Animated code rain", category: "animated", swatches: ["#22c55e", "#a3e635"], effect: "matrix" },
     { id: "ember", name: "Ember", detail: "Warm dark focus", category: "dark", swatches: ["#fb923c", "#facc15"], effect: "embers" },
-    { id: "upload", name: "Custom", detail: "Your uploaded image", category: "clean", swatches: ["#64748b", "#f8fafc"] }
+    { id: "upload", name: "Custom", detail: "Your uploaded image", category: "clean", swatches: ["#64748b", "#f8fafc"] },
+    { id: "pixel-ocean-morning", name: "Pixel Ocean Morning", detail: "Blocky sunrise water and grass", category: "playful", swatches: ["#38bdf8", "#22c55e"], secret: true },
+    { id: "pixel-land-morning", name: "Pixel Land Morning", detail: "Blocky grass, dirt, and blue sky", category: "playful", swatches: ["#93c5fd", "#16a34a"], secret: true },
+    { id: "pixel-land-night", name: "Pixel Land Night", detail: "Blocky night grass under moonlight", category: "dark", swatches: ["#111827", "#22c55e"], secret: true }
   ];
   const SKIN_IDS = SKIN_LIBRARY.map(skin => skin.id);
   const DEFAULT_UNLOCKED_SKINS = ["default", "campus", "library", "graphite", "steel", "notebook", "rainbow", "candy", "citrus", "mint"];
@@ -1590,6 +1603,7 @@
     cafe: { root: 164.81, intervals: [0, 4, 7, 11], delay: 1.2, wave: "sine", filter: 1200 },
     piano: { root: 261.63, intervals: [0, 4, 7, 12], delay: 1.75, wave: "triangle", filter: 1800 },
     ocean: { root: 130.81, intervals: [0, 5, 7, 12], delay: 1.55, wave: "sine", filter: 700 },
+    village: null,
     imported: null
   };
 
@@ -1599,11 +1613,11 @@
       tasks: [], courses: [...DEFAULT_COURSES], selectedTaskId: null,
       sessionsCompleted: 0, focusMinutes: 0, streakDays: 0, lastSessionDate: null,
       canvasImports: 0, teamsnapImports: 0, minimalist: false, tutorialSeen: false,
-      selectedSkin: "default", skinsVisible: true, confettiEnabled: true,
+      selectedSkin: "default", skinsVisible: true, confettiEnabled: true, secretPixelUnlocked: false,
       skinSearch: "", skinCategory: "all", customSkinDataUrl: "", customSkinName: "",
       unlockedSkins: [...DEFAULT_UNLOCKED_SKINS],
       taskFilters: { search: "", status: "open", source: "all", course: "all", sort: "due" },
-      musicMode: "none", musicVolume: 35, importedMusicName: "", importedMusicDataUrl: "",
+      musicMode: "village", musicVolume: 35, importedMusicName: "", importedMusicDataUrl: "",
       membeanEnabled: false,
       teamSnapEnabled: false,
       lastCourseResyncAt: null,
@@ -1707,9 +1721,11 @@
       merged.calendarView = ["month", "week"].includes(merged.calendarView) ? merged.calendarView : "month";
       merged.selectedSkin = SKIN_IDS.includes(merged.selectedSkin) ? merged.selectedSkin : "default";
       merged.skinsVisible = typeof merged.skinsVisible === "boolean" ? merged.skinsVisible : true;
+      merged.secretPixelUnlocked = Boolean(merged.secretPixelUnlocked);
       merged.skinSearch = typeof merged.skinSearch === "string" ? merged.skinSearch : "";
       merged.skinCategory = ["all", "clean", "light", "dark", "animated", "playful"].includes(merged.skinCategory) ? merged.skinCategory : "all";
       merged.unlockedSkins = normalizeUnlockedSkins(merged.unlockedSkins, merged);
+      if (merged.secretPixelUnlocked) merged.unlockedSkins = SKIN_IDS.slice();
       if (!merged.unlockedSkins.includes(merged.selectedSkin)) merged.selectedSkin = "default";
       merged.customSkinName = typeof merged.customSkinName === "string" ? merged.customSkinName : "";
       merged.customSkinDataUrl = typeof merged.customSkinDataUrl === "string" && merged.customSkinDataUrl.startsWith("data:image/") ? merged.customSkinDataUrl : "";
@@ -1848,6 +1864,23 @@
     return "normal";
   }
 
+  function isSecretPixelCode(value) {
+    return String(value || "").trim().toLowerCase() === String.fromCharCode(65, 73, 68, 69, 78).toLowerCase();
+  }
+
+  function unlockSecretPixelMode() {
+    state.secretPixelUnlocked = true;
+    state.skinsVisible = true;
+    state.unlockedSkins = SKIN_IDS.slice();
+    state.selectedSkin = "pixel-land-morning";
+    state.musicMode = "village";
+    saveState();
+    syncMusicSettings();
+    renderAll();
+    startBackgroundMusic();
+    addNotification("Secret pixel mode unlocked. All skins are available.", "success", 4500);
+  }
+
   function publishEpstudyVersionSelection(source = "app") {
     try { localStorage.setItem(VERSION_STORAGE_KEY, EPSTUDY_APP_VERSION); } catch {}
     window.postMessage({ type: "EPSTUDY_VERSION_SELECTED", version: EPSTUDY_APP_VERSION, source }, bridgeTargetOrigin());
@@ -1872,6 +1905,11 @@
     if (code === "simple") {
       if (status) status.textContent = "Opening Simple mode...";
       switchEpstudyVersion("simple");
+      return;
+    }
+    if (isSecretPixelCode(value)) {
+      if (status) status.textContent = "Unlocked.";
+      unlockSecretPixelMode();
       return;
     }
     if (status) status.textContent = "That config code is not active yet.";
@@ -2009,6 +2047,10 @@
 
   function bridgeTargetOrigin() {
     return window.location.protocol === "file:" || window.location.origin === "null" ? "*" : window.location.origin;
+  }
+
+  function sharedAssetUrl(name) {
+    return new URL(`../../shared/${name}`, document.baseURI).href;
   }
 
   const extensionSyncButtonLabels = {};
@@ -2778,11 +2820,12 @@
   }
 
   function startBackgroundMusic() {
-    if (state.musicMode === "imported") {
+    if (state.musicMode === "imported" || state.musicMode === "village") {
       stopBackgroundMusic();
-      if (!state.importedMusicDataUrl) return;
-      if (!importedMusicAudio || importedMusicAudio.src !== state.importedMusicDataUrl) {
-        importedMusicAudio = new Audio(state.importedMusicDataUrl);
+      const audioSrc = state.musicMode === "village" ? sharedAssetUrl("village-fete.mp3") : state.importedMusicDataUrl;
+      if (!audioSrc) return;
+      if (!importedMusicAudio || importedMusicAudio.src !== audioSrc) {
+        importedMusicAudio = new Audio(audioSrc);
         importedMusicAudio.loop = true;
       }
       setMusicVolume();
@@ -2818,7 +2861,7 @@
     const volumeRange = document.getElementById("musicVolumeRange");
     if (volumeRange) volumeRange.value = String(state.musicVolume);
     const importStatus = document.getElementById("musicImportStatus");
-    if (importStatus) importStatus.textContent = state.importedMusicName ? `Imported: ${state.importedMusicName}` : "No imported track yet.";
+    if (importStatus) importStatus.textContent = state.musicMode === "village" ? "Using built-in Village Fete audio." : (state.importedMusicName ? `Imported: ${state.importedMusicName}` : "No imported track yet.");
     if (state.musicMode === "none") stopBackgroundMusic();
     else setMusicVolume();
   }
@@ -3231,6 +3274,7 @@
     const query = String(state.skinSearch || "").trim().toLowerCase();
     const category = state.skinCategory || "all";
     const skins = SKIN_LIBRARY.filter(skin => {
+      if (skin.secret && !state.secretPixelUnlocked) return false;
       const searchable = `${skin.name} ${skin.detail} ${skin.category}`.toLowerCase();
       return (!query || searchable.includes(query)) && (category === "all" || skin.category === category || (category === "animated" && skin.effect));
     });
@@ -4954,6 +4998,7 @@
     const onSettings = page === "settings";
     document.body.classList.remove(...SKIN_IDS.map(id => `skin-${id}`));
     if (state.skinsVisible && state.selectedSkin) document.body.classList.add(`skin-${state.selectedSkin}`);
+    document.body.classList.toggle("secret-pixel-enabled", Boolean(state.secretPixelUnlocked));
     applySkinBackground();
     document.body.classList.toggle("minimalist", Boolean(state.minimalist));
     const mt = document.getElementById("minimalToggle"); if (mt) mt.textContent = `Minimalist: ${state.minimalist ? "On" : "Off"}`;
