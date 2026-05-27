@@ -599,6 +599,7 @@
   body.secret-pixel-enabled, body.secret-pixel-enabled * { image-rendering: pixelated; border-radius: 0 !important; }
   body.secret-pixel-enabled { font-family: "Courier New", monospace; }
   body.secret-pixel-enabled::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 2147483646; opacity: 0.18; background: repeating-linear-gradient(0deg, rgba(0,0,0,0.28) 0 1px, transparent 1px 6px), repeating-linear-gradient(90deg, rgba(0,0,0,0.18) 0 1px, transparent 1px 6px); mix-blend-mode: multiply; }
+  body.secret-pixel-enabled.skin-pixel-ocean-morning::before, body.secret-pixel-enabled.skin-pixel-land-morning::before, body.secret-pixel-enabled.skin-pixel-land-night::before { content: none; display: none; }
   body.secret-pixel-enabled .panel, body.secret-pixel-enabled .button, body.secret-pixel-enabled .field, body.secret-pixel-enabled .task-item, body.secret-pixel-enabled .calendar-task { box-shadow: 4px 4px 0 rgba(15, 23, 42, 0.18); }
   body.skin-midnight .panel, body.skin-cyber .panel, body.skin-matrix .panel, body.skin-ember .panel { backdrop-filter: blur(14px); }
   body.skin-matrix #fxCanvas, body.skin-snow #fxCanvas, body.skin-ember #fxCanvas, body.skin-bloom #fxCanvas, body.skin-midnight #fxCanvas { opacity: 0.72; }
@@ -1889,6 +1890,20 @@
     addNotification("Secret pixel mode unlocked. All skins are available.", "success", 4500);
   }
 
+  function activateNormalModeFromConfig() {
+    state.secretPixelUnlocked = false;
+    state.aidenDevMode = false;
+    state.selectedSkin = "default";
+    state.musicMode = "none";
+    state.tutorialSeen = true;
+    stopBackgroundMusic();
+    saveState();
+    syncMusicSettings();
+    renderAll();
+    navigate("dashboard");
+    addNotification("Normal mode restored.", "success", 2600);
+  }
+
   function publishEpstudyVersionSelection(source = "app") {
     try { localStorage.setItem(VERSION_STORAGE_KEY, EPSTUDY_APP_VERSION); } catch {}
     window.postMessage({ type: "EPSTUDY_VERSION_SELECTED", version: EPSTUDY_APP_VERSION, source }, bridgeTargetOrigin());
@@ -1913,6 +1928,12 @@
     if (code === "simple") {
       if (status) status.textContent = "Opening Simple mode...";
       switchEpstudyVersion("simple");
+      return;
+    }
+    if (code === "normal") {
+      if (status) status.textContent = "Opening Normal mode...";
+      activateNormalModeFromConfig();
+      switchEpstudyVersion("normal");
       return;
     }
     if (isSecretPixelCode(value)) {
