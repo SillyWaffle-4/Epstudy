@@ -594,6 +594,13 @@
   body.skin-blowout { background: radial-gradient(circle at 20% 16%, #fef08a 0 14%, transparent 16%), radial-gradient(circle at 78% 22%, #22c55e 0 16%, transparent 18%), repeating-conic-gradient(from 15deg, #facc15 0 8deg, #22c55e 8deg 17deg, #0284c7 17deg 28deg); --bg-gray: #fef08a; --panel: #fef08a; --text-main: #052e16; --text-dark: #001b44; --muted: #14532d; --border: #0284c7; --navy-primary: #0284c7; --primary-content: #ffffff; --gold: #facc15; }
   body.skin-blowout .panel, body.skin-blowout .task-item, body.skin-blowout .button, body.skin-blowout .field { background: #fef08a; border-width: 4px; box-shadow: 10px 10px 0 #22c55e, -6px -6px 0 #0284c7; }
   body.skin-blowout .button.primary, body.skin-blowout .calendar-task { background: #0284c7; color: #ffffff; }
+  body.skin-catstorm { background-color: #020617; background-image: radial-gradient(circle at 15% 18%, rgba(148, 163, 184, 0.16), transparent 24%), radial-gradient(circle at 78% 12%, rgba(244, 114, 182, 0.14), transparent 22%), repeating-linear-gradient(35deg, transparent 0 58px, rgba(255, 255, 255, 0.06) 58px 60px); --bg-gray: rgba(2, 6, 23, 0.78); --panel: rgba(3, 7, 18, 0.9); --text-main: #e5e7eb; --text-dark: #ffffff; --muted: #c4b5fd; --border: rgba(244, 114, 182, 0.26); --navy-primary: #f472b6; --primary-content: #020617; --gold: #f9a8d4; }
+  body.skin-catstorm::after { content: "🐈‍⬛ 🐈 🐱 🐾 🐈‍⬛ 🐱 🐾 🐈 🐈‍⬛ 🐾 🐱 🐈"; position: fixed; inset: 0; z-index: -1; pointer-events: none; color: rgba(255, 255, 255, 0.22); font-size: clamp(2.2rem, 6vw, 5rem); line-height: 1.4; word-spacing: 1.2rem; overflow: hidden; transform: rotate(-9deg) scale(1.12); transform-origin: center; }
+  body.skin-catstorm .panel, body.skin-catstorm .task-item, body.skin-catstorm .field { background: rgba(3, 7, 18, 0.92); border-color: rgba(244, 114, 182, 0.3); box-shadow: 0 18px 52px rgba(0, 0, 0, 0.35); }
+  body.skin-catstorm .button.primary, body.skin-catstorm .calendar-task { background: #f472b6; color: #020617; }
+  body.skin-hacker { background: #001208; background-image: repeating-linear-gradient(0deg, rgba(34, 197, 94, 0.12) 0 1px, transparent 1px 22px), repeating-linear-gradient(90deg, rgba(34, 197, 94, 0.06) 0 1px, transparent 1px 24px); --bg-gray: rgba(0, 24, 10, 0.82); --panel: rgba(0, 18, 8, 0.92); --text-main: #bbf7d0; --text-dark: #dcfce7; --muted: #86efac; --border: rgba(34, 197, 94, 0.28); --navy-primary: #22c55e; --primary-content: #001208; --gold: #a3e635; }
+  body.skin-hacker::after { content: "01001000 01000001 01000011 01001011 00100000 101010 01100101 01110000 01110011 01110100 01110101 01100100 01111001"; position: fixed; inset: 0; z-index: -1; pointer-events: none; color: rgba(34, 197, 94, 0.2); font-family: "Courier New", monospace; font-size: clamp(1rem, 2vw, 1.8rem); line-height: 1.7; letter-spacing: 0.08em; overflow: hidden; padding: 2rem; }
+  body.skin-hacker .panel, body.skin-hacker .task-item, body.skin-hacker .field { border-color: rgba(34, 197, 94, 0.34); box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.16), 0 0 30px rgba(34, 197, 94, 0.1); }
   body.skin-pixel-ocean-morning, body.skin-pixel-land-morning, body.skin-pixel-land-night { background-size: 148px 148px, 100% 100%; background-repeat: no-repeat, no-repeat; background-position: left top, center; }
   body.skin-pixel-ocean-morning .panel, body.skin-pixel-land-morning .panel, body.skin-pixel-land-night .panel { box-shadow: 8px 8px 0 color-mix(in srgb, var(--navy-primary) 16%, transparent); }
   body.secret-pixel-enabled, body.secret-pixel-enabled * { image-rendering: pixelated; border-radius: 0 !important; }
@@ -912,7 +919,7 @@
         </div>
         <div class="settings-card col-12">
           <h3>Config Codes</h3>
-          <p>Enter a config code to unlock or switch special modes.</p>
+          <p>Enter a config code to unlock or switch special modes. Try out Simple Mode!</p>
           <form id="configCodeForm" class="config-code-row">
             <input id="configCodeInput" class="field" type="text" placeholder="Enter config code" autocomplete="off" />
             <button class="button primary" type="submit">Submit</button>
@@ -1563,6 +1570,8 @@
     { id: "pixel-ocean-morning", name: "Pixel Ocean Morning", detail: "Blocky sunrise water and grass", category: "playful", swatches: ["#38bdf8", "#22c55e"], secret: true },
     { id: "pixel-land-morning", name: "Pixel Land Morning", detail: "Blocky grass, dirt, and blue sky", category: "playful", swatches: ["#93c5fd", "#16a34a"], secret: true },
     { id: "pixel-land-night", name: "Pixel Land Night", detail: "Blocky night grass under moonlight", category: "dark", swatches: ["#111827", "#22c55e"], secret: true },
+    { id: "catstorm", name: "Catstorm", detail: "Black cat mode with lots of cats", category: "dark", swatches: ["#020617", "#f472b6"], secret: true },
+    { id: "hacker", name: "Hacker", detail: "Green terminal glow", category: "dark", swatches: ["#001208", "#22c55e"], secret: true },
     { id: "blowout", name: "Blowout", detail: "Maximum blue, green, and yellow chaos", category: "playful", swatches: ["#0284c7", "#facc15"], secret: true }
   ];
   const SKIN_IDS = SKIN_LIBRARY.map(skin => skin.id);
@@ -1711,6 +1720,7 @@
     const unlocked = new Set(DEFAULT_UNLOCKED_SKINS);
     if (Array.isArray(raw)) raw.map(String).filter(id => SKIN_IDS.includes(id)).forEach(id => unlocked.add(id));
     SKIN_LIBRARY.forEach(skin => {
+      if (skin.secret) return;
       if (skinUnlockMet(SKIN_UNLOCK_RULES[skin.id], snapshot)) unlocked.add(skin.id);
     });
     return Array.from(unlocked).filter(id => SKIN_IDS.includes(id));
@@ -1896,6 +1906,14 @@
     return String(value || "").trim().toLowerCase() === String.fromCharCode(65, 73, 68, 69, 78).toLowerCase();
   }
 
+  function isAariniCode(value) {
+    return String(value || "").trim().toLowerCase() === String.fromCharCode(65, 65, 82, 73, 78, 73).toLowerCase();
+  }
+
+  function isHackerCode(value) {
+    return String(value || "").trim().toLowerCase() === String.fromCharCode(72, 65, 67, 75, 69, 82).toLowerCase();
+  }
+
   function unlockSecretPixelMode() {
     state.secretPixelUnlocked = true;
     state.aidenDevMode = true;
@@ -1924,6 +1942,18 @@
     renderAll();
     navigate("dashboard");
     addNotification("Normal mode restored.", "success", 2600);
+  }
+
+  function unlockSingleSecretSkin(skinId, notification) {
+    if (!SKIN_IDS.includes(skinId)) return;
+    state.secretPixelUnlocked = false;
+    state.aidenDevMode = false;
+    state.skinsVisible = true;
+    state.unlockedSkins = Array.from(new Set([...(state.unlockedSkins || DEFAULT_UNLOCKED_SKINS), skinId]));
+    state.selectedSkin = skinId;
+    saveState();
+    renderAll();
+    addNotification(notification, "success", 4200);
   }
 
   function publishEpstudyVersionSelection(source = "app") {
@@ -1956,6 +1986,16 @@
       if (status) status.textContent = "Opening Normal mode...";
       activateNormalModeFromConfig();
       switchEpstudyVersion("normal");
+      return;
+    }
+    if (isAariniCode(value)) {
+      if (status) status.textContent = "Cat mode unlocked.";
+      unlockSingleSecretSkin("catstorm", "AARINI mode unlocked: Catstorm is live.");
+      return;
+    }
+    if (isHackerCode(value)) {
+      if (status) status.textContent = "Hacker skin unlocked.";
+      unlockSingleSecretSkin("hacker", "Secret hacker skin unlocked.");
       return;
     }
     if (isSecretPixelCode(value)) {
@@ -3379,7 +3419,7 @@
     const query = String(state.skinSearch || "").trim().toLowerCase();
     const category = state.skinCategory || "all";
     const skins = SKIN_LIBRARY.filter(skin => {
-      if (skin.secret && !state.secretPixelUnlocked) return false;
+      if (skin.secret && !state.secretPixelUnlocked && !isSkinUnlocked(skin.id)) return false;
       const searchable = `${skin.name} ${skin.detail} ${skin.category}`.toLowerCase();
       return (!query || searchable.includes(query)) && (category === "all" || skin.category === category || (category === "animated" && skin.effect));
     });
