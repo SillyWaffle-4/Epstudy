@@ -404,7 +404,7 @@
   .day-header { background: var(--bg-gray); color: var(--muted); text-align: center; padding: 12px; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; }
   .day-cell { min-height: 150px; padding: 10px; background: var(--panel); display: grid; align-content: start; gap: 7px; transition: background 0.2s;}
   .day-cell:hover { background: var(--bg-gray); }
-  .day-cell.other-month { background: var(--bg-gray); opacity: 0.6; }
+  .day-cell.other-month, .full-calendar-cell.other-month { background: color-mix(in srgb, var(--bg-gray) 82%, #9ca3af); opacity: 0.45; filter: grayscale(0.35); }
   .day-cell.today { background: var(--panel); border: 2px solid var(--navy-primary); }
   .day-number { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 0.85rem; font-weight: 700; color: var(--text-main); margin-bottom: 4px;}
   .day-cell.today .day-number { background: var(--navy-primary); color: var(--primary-content); }
