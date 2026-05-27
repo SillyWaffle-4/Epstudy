@@ -954,6 +954,28 @@
               <label class="field-label" for="taskDueTime">Due Time</label>
               <input id="taskDueTime" class="field" type="time" value="23:59" required />
             </div>
+            <div class="field-group span-4">
+              <label class="field-label" for="taskRepeatRule">Repeat</label>
+              <select id="taskRepeatRule" class="field">
+                <option value="none">Does not repeat</option>
+                <option value="daily">Every day</option>
+                <option value="weekday">Every weekday</option>
+                <option value="weekend">Every weekend</option>
+                <option value="sunday">Every Sunday</option>
+                <option value="every-other-day">Every other day</option>
+                <option value="every-third-day">Every 3rd day</option>
+                <option value="da-day">Every D-A day</option>
+                <option value="ad-day">Every A-D day</option>
+                <option value="he-day">Every H-E day</option>
+                <option value="eh-day">Every E-H day</option>
+                <option value="monthly">Every month</option>
+                <option value="yearly">Every year</option>
+              </select>
+            </div>
+            <div class="field-group span-4">
+              <label class="field-label" for="taskRepeatCount">Occurrences</label>
+              <input id="taskRepeatCount" class="number-field" type="number" min="1" max="60" value="10" />
+            </div>
             <div class="field-group span-4 align-end">
               <button class="button primary" type="submit">Add Task</button>
             </div>
@@ -5286,8 +5308,120 @@
     updateAllAssignmentsDisplay();
   }
 
+  function clampRepeatCount(value) {
+    const count = Math.round(Number(value || 1));
+    if (!Number.isFinite(count)) return 1;
+    return Math.max(1, Math.min(60, count));
+  }
+
+  function cloneDateWithLocalTime(date, time = "23:59") {
+    const [hours, minutes] = String(time || "23:59").split(":").map(Number);
+    const next = new Date(date);
+    next.setHours(Number.isFinite(hours) ? hours : 23, Number.isFinite(minutes) ? minutes : 59, 0, 0);
+    return next;
+  }
+
+  function taskDateFromInput(dateValue) {
+    const [year, month, day] = String(dateValue || "").split("-").map(Number);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
+    const date = new Date(year, month - 1, day);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  function addCalendarMonths(date, months) {
+    const next = new Date(date);
+    const day = next.getDate();
+    next.setDate(1);
+    next.setMonth(next.getMonth() + months);
+    next.setDate(Math.min(day, new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate()));
+    return next;
+  }
+
+  function scheduleHasLetterRange(schedule, range) {
+    const wanted = String(range || "").toUpperCase();
+    if (!wanted) return false;
+    return (schedule?.periods || []).some(period => {
+      const label = String(period?.period || "").toUpperCase().replace(/\s+/g, "");
+      return label === wanted || label.includes(wanted);
+    });
+  }
+
+  async function getScheduleForTaskDate(date) {
+    const key = localDateKey(date.toISOString());
+    if (state.epsSchedules?.[key]) return state.epsSchedules[key];
+    try {
+      const res = await fetch(`https://four11.eastsideprep.org/epsnet/schedule_for_date?date=${encodeURIComponent(key)}`);
+      if (!res.ok) return null;
+      const schedule = await res.json();
+      if (schedule?.periods?.length) {
+        state.epsSchedules[key] = schedule;
+        return schedule;
+      }
+    } catch {}
+    return null;
+  }
+
+  async function dateMatchesRepeatRule(date, startDate, rule) {
+    const day = date.getDay();
+    const daysFromStart = Math.round((new Date(date.getFullYear(), date.getMonth(), date.getDate()) - new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())) / 86400000);
+    if (rule === "daily") return true;
+    if (rule === "weekday") return day >= 1 && day <= 5;
+    if (rule === "weekend") return day === 0 || day === 6;
+    if (rule === "sunday") return day === 0;
+    if (rule === "every-other-day") return daysFromStart % 2 === 0;
+    if (rule === "every-third-day") return daysFromStart % 3 === 0;
+    if (rule === "da-day" || rule === "ad-day" || rule === "he-day" || rule === "eh-day") {
+      const schedule = await getScheduleForTaskDate(date);
+      const range = { "da-day": "D-A", "ad-day": "A-D", "he-day": "H-E", "eh-day": "E-H" }[rule];
+      return scheduleHasLetterRange(schedule, range);
+    }
+    return true;
+  }
+
+  async function buildManualTaskOccurrences({ title, estimatedMinutes, dateValue, timeValue, courseId, repeatRule, repeatCount }) {
+    const startDate = taskDateFromInput(dateValue);
+    if (!startDate) return [];
+    const rule = repeatRule || "none";
+    const count = rule === "none" ? 1 : clampRepeatCount(repeatCount);
+    const baseId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const tasks = [];
+    let cursor = new Date(startDate);
+    let attempts = 0;
+    const maxAttempts = rule === "yearly" ? count : Math.max(370, count * 42);
+    while (tasks.length < count && attempts < maxAttempts) {
+      const candidate = new Date(cursor);
+      let matches = true;
+      if (rule === "monthly") {
+        cursor = addCalendarMonths(startDate, attempts);
+      } else if (rule === "yearly") {
+        cursor = new Date(startDate);
+        cursor.setFullYear(startDate.getFullYear() + attempts);
+      } else {
+        matches = rule === "none" || await dateMatchesRepeatRule(candidate, startDate, rule);
+      }
+      const dueDate = rule === "monthly" || rule === "yearly" ? new Date(cursor) : candidate;
+      if (rule === "monthly" || rule === "yearly") matches = true;
+      if (matches) {
+        tasks.push({
+          id: `${baseId}-${tasks.length}`,
+          title,
+          estimatedMinutes,
+          dueDate: cloneDateWithLocalTime(dueDate, timeValue).toISOString(),
+          source: "manual",
+          courseId,
+          completed: false,
+          repeatRule: rule,
+          repeatGroupId: baseId
+        });
+      }
+      attempts += 1;
+      if (rule !== "monthly" && rule !== "yearly") cursor.setDate(cursor.getDate() + 1);
+    }
+    return tasks;
+  }
+
   function registerEvents() {
-    document.getElementById("taskForm")?.addEventListener("submit", e => {
+    document.getElementById("taskForm")?.addEventListener("submit", async e => {
       e.preventDefault();
       const t = document.getElementById("taskTitle").value.trim(), m = Number(document.getElementById("taskMinutes").value || 25), d = document.getElementById("taskDueDate").value, time = document.getElementById("taskDueTime").value || "23:59";
       if (!t || !d || !m) return;
@@ -5295,12 +5429,20 @@
       if (!hasRealCourseForCourses({ courseId }, state.courses)) { addNotification("Pick a real course before adding this task.", "warning"); return; }
       const iso = safeIsoFromDateTime(d, time); 
       if (!iso) { addNotification("Invalid date.", "warning"); return; }
-      state.tasks.unshift({ id: `${Date.now()}-${Math.random().toString(16)}`, title: t, estimatedMinutes: m, dueDate: iso, source: "manual", courseId, completed: false });
+      const repeatRule = document.getElementById("taskRepeatRule")?.value || "none";
+      const repeatCount = document.getElementById("taskRepeatCount")?.value || 1;
+      const tasks = await buildManualTaskOccurrences({ title: t, estimatedMinutes: m, dateValue: d, timeValue: time, courseId, repeatRule, repeatCount });
+      if (!tasks.length) { addNotification("No matching dates found for that repeat pattern.", "warning", 4200); return; }
+      state.tasks.unshift(...tasks);
+      state.tasks.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
       saveState();
       e.target.reset();
       document.getElementById("taskMinutes").value = "25";
       document.getElementById("taskDueTime").value = "23:59";
       document.getElementById("taskDueDate").value = new Date().toISOString().slice(0, 10);
+      document.getElementById("taskRepeatRule").value = "none";
+      document.getElementById("taskRepeatCount").value = "10";
+      addNotification(tasks.length === 1 ? "Task added." : `${tasks.length} repeating tasks added.`, "success", 2600);
       renderAll();
     });
 
