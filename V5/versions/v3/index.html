@@ -1575,6 +1575,8 @@
     { id: "blowout", name: "Blowout", detail: "Maximum blue, green, and yellow chaos", category: "playful", swatches: ["#0284c7", "#facc15"], secret: true }
   ];
   const SKIN_IDS = SKIN_LIBRARY.map(skin => skin.id);
+  const AIDEN_SECRET_SKINS = ["pixel-ocean-morning", "pixel-land-morning", "pixel-land-night", "blowout"];
+  const AARINI_SECRET_SKINS = ["catstorm", "hacker"];
   const DEFAULT_UNLOCKED_SKINS = ["default", "campus", "library", "graphite", "steel", "notebook", "rainbow", "candy", "citrus", "mint"];
   const SKIN_UNLOCK_RULES = {
     forest: { minutes: 10, label: "Study 10 counted minutes" },
@@ -1649,7 +1651,7 @@
       tasks: [], courses: [...DEFAULT_COURSES], selectedTaskId: null,
       sessionsCompleted: 0, focusMinutes: 0, streakDays: 0, lastSessionDate: null,
       canvasImports: 0, teamsnapImports: 0, minimalist: false, tutorialSeen: false,
-      selectedSkin: "default", skinsVisible: true, confettiEnabled: true, secretPixelUnlocked: false, aidenDevMode: false,
+      selectedSkin: "default", skinsVisible: true, confettiEnabled: true, secretPixelUnlocked: false, aidenDevMode: false, secretSkinMode: "",
       skinSearch: "", skinCategory: "all", customSkinDataUrl: "", customSkinName: "",
       unlockedSkins: [...DEFAULT_UNLOCKED_SKINS],
       taskFilters: { search: "", status: "open", source: "all", course: "all", sort: "due" },
@@ -1741,6 +1743,13 @@
     return (state.unlockedSkins || DEFAULT_UNLOCKED_SKINS).includes(skinId);
   }
 
+  function isSecretSkinVisible(skinId) {
+    if (!SKIN_LIBRARY.find(skin => skin.id === skinId)?.secret) return true;
+    if (state.secretSkinMode === "aiden" || state.aidenDevMode || state.secretPixelUnlocked) return AIDEN_SECRET_SKINS.includes(skinId);
+    if (state.secretSkinMode === "aarini") return AARINI_SECRET_SKINS.includes(skinId);
+    return isSkinUnlocked(skinId);
+  }
+
   function loadState() {
     const base = defaultState();
     try {
@@ -1760,10 +1769,11 @@
       merged.skinsVisible = typeof merged.skinsVisible === "boolean" ? merged.skinsVisible : true;
       merged.secretPixelUnlocked = Boolean(merged.secretPixelUnlocked);
       merged.aidenDevMode = Boolean(merged.aidenDevMode || merged.secretPixelUnlocked);
+      merged.secretSkinMode = ["aiden", "aarini"].includes(merged.secretSkinMode) ? merged.secretSkinMode : (merged.aidenDevMode ? "aiden" : (AARINI_SECRET_SKINS.includes(merged.selectedSkin) ? "aarini" : ""));
       merged.skinSearch = typeof merged.skinSearch === "string" ? merged.skinSearch : "";
       merged.skinCategory = ["all", "clean", "light", "dark", "animated", "playful"].includes(merged.skinCategory) ? merged.skinCategory : "all";
       merged.unlockedSkins = normalizeUnlockedSkins(merged.unlockedSkins, merged);
-      if (merged.aidenDevMode) merged.unlockedSkins = SKIN_IDS.slice();
+      if (merged.aidenDevMode) merged.unlockedSkins = SKIN_IDS.filter(id => !AARINI_SECRET_SKINS.includes(id));
       if (!merged.unlockedSkins.includes(merged.selectedSkin)) merged.selectedSkin = "default";
       merged.customSkinName = typeof merged.customSkinName === "string" ? merged.customSkinName : "";
       merged.customSkinDataUrl = typeof merged.customSkinDataUrl === "string" && merged.customSkinDataUrl.startsWith("data:image/") ? merged.customSkinDataUrl : "";
@@ -1918,7 +1928,8 @@
     state.secretPixelUnlocked = true;
     state.aidenDevMode = true;
     state.skinsVisible = true;
-    state.unlockedSkins = SKIN_IDS.slice();
+    state.secretSkinMode = "aiden";
+    state.unlockedSkins = SKIN_IDS.filter(id => !AARINI_SECRET_SKINS.includes(id));
     state.selectedSkin = "pixel-land-morning";
     state.musicMode = "village";
     state.tutorialSeen = false;
@@ -1933,6 +1944,7 @@
   function activateNormalModeFromConfig() {
     state.secretPixelUnlocked = false;
     state.aidenDevMode = false;
+    state.secretSkinMode = "";
     state.selectedSkin = "default";
     state.musicMode = "none";
     state.tutorialSeen = true;
@@ -1949,6 +1961,7 @@
     state.secretPixelUnlocked = false;
     state.aidenDevMode = false;
     state.skinsVisible = true;
+    state.secretSkinMode = AARINI_SECRET_SKINS.includes(skinId) ? "aarini" : "";
     state.unlockedSkins = Array.from(new Set([...(state.unlockedSkins || DEFAULT_UNLOCKED_SKINS), skinId]));
     state.selectedSkin = skinId;
     saveState();
@@ -3419,7 +3432,7 @@
     const query = String(state.skinSearch || "").trim().toLowerCase();
     const category = state.skinCategory || "all";
     const skins = SKIN_LIBRARY.filter(skin => {
-      if (skin.secret && !state.secretPixelUnlocked && !isSkinUnlocked(skin.id)) return false;
+      if (skin.secret && !isSecretSkinVisible(skin.id)) return false;
       const searchable = `${skin.name} ${skin.detail} ${skin.category}`.toLowerCase();
       return (!query || searchable.includes(query)) && (category === "all" || skin.category === category || (category === "animated" && skin.effect));
     });
