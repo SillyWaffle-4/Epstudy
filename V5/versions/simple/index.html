@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>EPStudy Simple</title>
+<script src="../../shared/supabase-analytics.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
@@ -278,11 +279,29 @@
     return "simple";
   }
 
+  function logSimpleModeChange(destination, source = "simple") {
+    const to = String(destination || "").trim().toLowerCase();
+    if (!to || to === "simple" || to === "aiden") return;
+    window.EPSTUDY_ANALYTICS?.log("mode_changed", {
+      app: "mode-switch",
+      page: currentPage || "tasks",
+      metadata: {
+        appVersion: EPSTUDY_APP_VERSION,
+        mode: "simple",
+        page: currentPage || "tasks",
+        path: window.location.pathname,
+        to,
+        source
+      }
+    });
+  }
+
   function switchVersion(version) {
     const next = normalizeVersion(version);
     saveState();
     try { localStorage.setItem(VERSION_STORAGE_KEY, next); } catch {}
     window.postMessage({ type: "EPSTUDY_VERSION_SELECTED", version: next, source: "switch" }, bridgeTargetOrigin());
+    logSimpleModeChange(next, "version_switch");
     if (next !== "simple") window.location.href = VERSION_PATHS[next];
   }
 

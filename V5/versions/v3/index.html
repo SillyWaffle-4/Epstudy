@@ -15,6 +15,7 @@
   gtag('js', new Date());
   gtag('config', 'G-9YV2XSFT24');
 </script>
+<script src="../../shared/supabase-analytics.js"></script>
 <style>
   :root {
     /* Eastside Preparatory School Colors (Default Theme) */
@@ -925,7 +926,7 @@
         <div class="settings-card col-12">
           <h3>Config Codes</h3>
           <p>Enter a config code to unlock or switch special modes. Try out Simple Mode!</p>
-          <form id="configCodeForm" class="config-code-row">
+          <form id="configCodeForm" class="config-code-row" data-analytics-ignore>
             <input id="configCodeInput" class="field" type="text" placeholder="Enter config code" autocomplete="off" />
             <button class="button primary" type="submit">Submit</button>
           </form>
@@ -1936,6 +1937,130 @@
     return String(value || "").trim().toLowerCase() === String.fromCharCode(79, 71).toLowerCase();
   }
 
+  function analyticsClean(value, fallback = "") {
+    return String(value || fallback).replace(/\s+/g, " ").trim().slice(0, 90);
+  }
+
+  function analyticsMode() {
+    if (EPSTUDY_APP_VERSION !== "normal") return EPSTUDY_APP_VERSION;
+    try {
+      if (state?.aidenDevMode || state?.secretPixelUnlocked || state?.secretSkinMode === "aiden") return "aiden";
+      if (state?.secretSkinMode) return state.secretSkinMode;
+    } catch {}
+    return "normal";
+  }
+
+  function analyticsPage() {
+    try { return state?.currentPage || new URLSearchParams(window.location.search).get("page") || "dashboard"; }
+    catch { return "dashboard"; }
+  }
+
+  function analyticsBaseMetadata(extra = {}) {
+    return {
+      appVersion: EPSTUDY_APP_VERSION,
+      mode: analyticsMode(),
+      page: analyticsPage(),
+      path: window.location.pathname,
+      ...extra
+    };
+  }
+
+  function logAnalyticsEvent(eventName, metadata = {}, options = {}) {
+    if (!window.EPSTUDY_ANALYTICS) return;
+    const mode = analyticsMode();
+    if (options.normalOnly !== false && mode !== "normal") return;
+    window.EPSTUDY_ANALYTICS.log(eventName, {
+      app: options.app || "normal",
+      page: analyticsPage(),
+      metadata: analyticsBaseMetadata(metadata)
+    });
+  }
+
+  function logModeChange(destination, source = "app") {
+    const to = analyticsClean(destination).toLowerCase();
+    if (!to || to === "aiden") return;
+    logAnalyticsEvent("mode_changed", { to, source: analyticsClean(source) }, { app: "mode-switch", normalOnly: false });
+  }
+
+  function analyticsElementLabel(el) {
+    if (!el) return "";
+    const explicit = el.getAttribute("aria-label") || el.getAttribute("title") || el.getAttribute("placeholder") || "";
+    if (explicit) return analyticsClean(explicit);
+    if (el.tagName?.toLowerCase() === "input") return analyticsClean(el.id || el.name || el.type || "input");
+    return analyticsClean(el.innerText || el.textContent || el.id || el.name || el.tagName);
+  }
+
+  function analyticsElementMetadata(el, interaction) {
+    const dataset = el?.dataset || {};
+    const trackedDataset = {};
+    [
+      "page",
+      "action",
+      "commandRun",
+      "timerPreset",
+      "calendarView",
+      "dashboardToggle",
+      "dashboardExpandToggle",
+      "dashboardLiveSize",
+      "guideToggle",
+      "guideDivision",
+      "skinChoice"
+    ].forEach(key => {
+      if (dataset[key]) trackedDataset[key] = analyticsClean(dataset[key]);
+    });
+    const type = el.getAttribute?.("type") || "";
+    const role = el.getAttribute?.("role") || "";
+    return {
+      interaction,
+      element: String(el.tagName || "").toLowerCase(),
+      controlId: analyticsClean(el.id || el.name || ""),
+      controlType: analyticsClean(type || role || ""),
+      label: analyticsElementLabel(el),
+      ...trackedDataset
+    };
+  }
+
+  function analyticsSlug(value) {
+    const slug = String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 54);
+    return slug || "unknown";
+  }
+
+  function analyticsFeatureEventName(prefix, metadata) {
+    const candidate = metadata.action || metadata.commandRun || metadata.skinChoice || metadata.calendarView || metadata.dashboardToggle || metadata.dashboardLiveSize || metadata.controlId || metadata.page || metadata.label || metadata.element;
+    return `${prefix}_${analyticsSlug(candidate)}`.slice(0, 80);
+  }
+
+  function installFeatureAnalytics() {
+    document.addEventListener("click", event => {
+      const el = event.target?.closest?.("button,a,[role='button'],summary,input[type='button'],input[type='submit'],input[type='reset']");
+      if (!el || el.closest("[data-analytics-ignore]")) return;
+      const metadata = analyticsElementMetadata(el, "click");
+      logAnalyticsEvent(analyticsFeatureEventName("click", metadata), metadata);
+    }, true);
+
+    document.addEventListener("change", event => {
+      const el = event.target?.closest?.("input,select,textarea");
+      if (!el || el.closest("[data-analytics-ignore]")) return;
+      const type = String(el.getAttribute("type") || el.tagName || "").toLowerCase();
+      const metadata = {
+        ...analyticsElementMetadata(el, "change"),
+        checked: type === "checkbox" || type === "radio" ? Boolean(el.checked) : undefined
+      };
+      logAnalyticsEvent(analyticsFeatureEventName("change", metadata), metadata);
+    }, true);
+
+    document.addEventListener("submit", event => {
+      const form = event.target?.closest?.("form");
+      if (!form || form.closest("[data-analytics-ignore]")) return;
+      const metadata = analyticsElementMetadata(form, "submit");
+      logAnalyticsEvent(analyticsFeatureEventName("submit", metadata), metadata);
+    }, true);
+  }
+
   function unlockSecretPixelMode() {
     state.secretPixelUnlocked = true;
     state.aidenDevMode = true;
@@ -1954,6 +2079,7 @@
   }
 
   function activateNormalModeFromConfig() {
+    logModeChange("normal", "config_code");
     state.secretPixelUnlocked = false;
     state.aidenDevMode = false;
     state.secretSkinMode = "";
@@ -1970,6 +2096,8 @@
 
   function unlockSingleSecretSkin(skinId, notification) {
     if (!SKIN_IDS.includes(skinId)) return;
+    const nextMode = AARINI_SECRET_SKINS.includes(skinId) ? (skinId === "hacker" ? "hacker" : "aarini") : (OG_SECRET_SKINS.includes(skinId) ? "og" : "");
+    if (nextMode) logModeChange(nextMode, "config_code");
     state.secretPixelUnlocked = false;
     state.aidenDevMode = false;
     state.skinsVisible = true;
@@ -1989,6 +2117,7 @@
   function switchEpstudyVersion(nextVersion) {
     const next = normalizeEpstudyVersion(nextVersion);
     if (next === EPSTUDY_APP_VERSION) return;
+    logModeChange(next, "version_switch");
     saveState();
     try { localStorage.setItem(VERSION_STORAGE_KEY, next); } catch {}
     window.postMessage({ type: "EPSTUDY_VERSION_SELECTED", version: next, source: "switch" }, bridgeTargetOrigin());
@@ -2133,6 +2262,7 @@
       }
     }
     saveState();
+    logAnalyticsEvent("page_view", { to: page, updateHistory: Boolean(updateHistory) });
     renderAll();
   }
 
@@ -2342,6 +2472,7 @@
     const status = document.getElementById("extensionSyncStatus");
     if (status) status.textContent = statusMessage;
     setExtensionSyncing(true);
+    logAnalyticsEvent("sync_extension_requested", { membeanEnabled: Boolean(state.membeanEnabled), teamSnapEnabled: Boolean(state.teamSnapEnabled) });
     window.postMessage({ type: "EPSTUDY_EXTENSION_REQUEST_SYNC", config: { canvasDomain: getCanvasConfig().domain, membeanEnabled: Boolean(state.membeanEnabled) } }, bridgeTargetOrigin());
   }
 
@@ -4831,7 +4962,7 @@
       state.lastCourseResyncAt = new Date().toISOString();
     }
     if (state.teamSnapEnabled && Array.isArray(payload.teamsnap) && payload.teamsnap.length) ensureSportsCourse();
-    recordMembeanProgress(payload.membean);
+    if (recordMembeanProgress(payload.membean) && Array.isArray(payload.membean)) sourceCounts.membean = payload.membean.length;
     state.tasks = state.tasks.filter(task => String(task?.source || "").toLowerCase() !== "membean");
     for (const source of ["canvas", "teamsnap"]) {
       if (source === "teamsnap" && !state.teamSnapEnabled) continue;
@@ -4841,6 +4972,15 @@
       sourceCounts[source] = result.total;
     }
     const total = Object.values(sourceCounts).reduce((sum, count) => sum + count, 0);
+    logAnalyticsEvent("sync_extension_completed", {
+      total,
+      canvas: sourceCounts.canvas || 0,
+      teamsnap: sourceCounts.teamsnap || 0,
+      membean: sourceCounts.membean || 0,
+      coursesAdded: courseResult.added || 0,
+      coursesUpdated: courseResult.updated || 0,
+      resolvedUnfiltered: Boolean(resolvedUnfiltered)
+    });
     const status = document.getElementById("extensionSyncStatus");
     if (status) {
       if (canvasStatus?.status === "waiting_for_readable_page" && !total && !courseResult.added && !courseResult.updated && !resolvedUnfiltered) {
@@ -6101,17 +6241,20 @@
       const typing = ["input", "textarea", "select"].includes(tag);
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
+        logAnalyticsEvent("shortcut_command_palette", { shortcut: "mod+k" });
         openCommandPalette();
         return;
       }
       if (!typing && e.key === "/") {
         e.preventDefault();
+        logAnalyticsEvent("shortcut_task_search", { shortcut: "/" });
         navigate("tasks");
         document.getElementById("taskSearchInput")?.focus();
         return;
       }
       if (!typing && e.altKey && /^[1-6]$/.test(e.key)) {
         const pages = ["dashboard", "tasks", "timer", "calendar", "cosmetics", "settings", "contact"];
+        logAnalyticsEvent("shortcut_page_nav", { shortcut: `alt+${e.key}`, to: pages[Number(e.key) - 1] || "" });
         navigate(pages[Number(e.key) - 1]);
       }
     });
@@ -6325,6 +6468,7 @@
     if (confetti.length || activeSkinEffect) requestAnimationFrame(animateFx); else fxAnimationRunning = false;
   }
 
+  installFeatureAnalytics();
   registerEvents();
   initializeEpstudyVersionSwitcher();
   window.addEventListener("beforeunload", () => {
