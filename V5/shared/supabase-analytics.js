@@ -2,11 +2,11 @@
   const CONFIG = {
     // Paste your Supabase Project URL here, for example:
     // "https://your-project-ref.supabase.co"
-    url: "",
+    url: "https://hlveorwcilcxkamkzcyh.supabase.co",
 
     // Paste your Supabase anon/public key here.
     // Never paste the service_role key into a website or extension file.
-    anonKey: ""
+    anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhsdmVvcndjaWxjeGthbWt6Y3loIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5MjgxOTksImV4cCI6MjA5NTUwNDE5OX0.sO_R0ePq4SQLi5NUnqN7GeEz33rVEYZn_wV0ZKxqNjA"
   };
 
   const SESSION_KEY = "epstudy_analytics_session_v1";
