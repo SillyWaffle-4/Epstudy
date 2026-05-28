@@ -465,6 +465,15 @@
   .modal-card h2 { font-size: 1.35rem; font-weight: 800; color: var(--text-dark); margin-top: 0; margin-bottom: 1rem;}
   .modal-card ol { margin: 0 0 1.5rem; padding-left: 1.25rem; line-height: 1.55; color: var(--text-main); font-size: 0.98rem;}
   .modal-card li { margin-bottom: 0.65rem; }
+  .genius-card { max-width: 920px; overflow: hidden; background: linear-gradient(135deg, #fff7ad 0%, #e0f2fe 48%, #dcfce7 100%); border: 3px solid #facc15; color: #0f172a; }
+  .genius-card h2 { color: #001b44; font-size: clamp(2rem, 6vw, 4.5rem); line-height: 0.92; letter-spacing: 0; margin-bottom: 0.75rem; }
+  .genius-card p { color: #0f172a; font-weight: 800; }
+  .genius-bulbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(48px, 1fr)); gap: 16px; margin: 1.4rem 0; }
+  .genius-bulb { position: relative; width: 44px; height: 58px; margin: 0 auto; border-radius: 999px 999px 54% 54%; background: radial-gradient(circle at 36% 28%, #ffffff 0 11%, #fef08a 12% 52%, #facc15 78%); box-shadow: 0 0 18px rgba(250, 204, 21, 0.86), 0 0 42px rgba(34, 197, 94, 0.18); }
+  .genius-bulb::after { content: ""; position: absolute; left: 13px; right: 13px; bottom: -8px; height: 14px; border-radius: 3px; background: repeating-linear-gradient(0deg, #64748b 0 3px, #cbd5e1 3px 6px); }
+  .genius-bulb:nth-child(3n) { filter: hue-rotate(68deg); transform: rotate(-5deg); }
+  .genius-bulb:nth-child(4n) { filter: hue-rotate(168deg); transform: rotate(6deg); }
+  .genius-bulb:nth-child(5n) { transform: scale(1.14); }
   .guide-steps { counter-reset: guide; list-style: none; padding-left: 0 !important; display: grid; gap: 10px; }
   .guide-steps li { counter-increment: guide; display: flex; gap: 12px; align-items: flex-start; margin: 0; padding: 12px; background: var(--bg-gray); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-main); line-height: 1.45; overflow-wrap: anywhere; }
   .guide-steps li::before { content: counter(guide); flex: 0 0 32px; width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--radius-md); background: var(--navy-primary); color: var(--primary-content); font-weight: 800; font-size: 0.82rem; }
@@ -1247,6 +1256,23 @@
   </div>
 </div>
 
+<div id="geniusModal" class="modal-backdrop" aria-hidden="true">
+  <div class="modal-card genius-card" data-analytics-ignore>
+    <p class="eyebrow" style="color:#0284c7; margin-bottom: 0.6rem;">GENIUS MODE</p>
+    <h2>Bright Idea Unlocked</h2>
+    <p>Blowout is now its own GENIUS secret. It is loud, brilliant, and only visible in Genius mode.</p>
+    <div class="genius-bulbs" aria-hidden="true">
+      <span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span>
+      <span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span>
+      <span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span>
+      <span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span>
+    </div>
+    <div class="row" style="justify-content:flex-end;">
+      <button id="geniusCloseBtn" class="button primary" type="button">Brilliant</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modals -->
 <div id="welcomeModal" class="modal-backdrop" aria-hidden="true">
   <div class="modal-card welcome-card">
@@ -1582,9 +1608,10 @@
     { id: "blowout", name: "Blowout", detail: "Maximum blue, green, and yellow chaos", category: "playful", swatches: ["#0284c7", "#facc15"], secret: true }
   ];
   const SKIN_IDS = SKIN_LIBRARY.map(skin => skin.id);
-  const AIDEN_SECRET_SKINS = ["pixel-ocean-morning", "pixel-land-morning", "pixel-land-night", "blowout"];
+  const AIDEN_SECRET_SKINS = ["pixel-ocean-morning", "pixel-land-morning", "pixel-land-night"];
   const AARINI_SECRET_SKINS = ["catstorm", "hacker"];
   const OG_SECRET_SKINS = ["og-classic"];
+  const GENIUS_SECRET_SKINS = ["blowout"];
   const DEFAULT_UNLOCKED_SKINS = ["default", "campus", "library", "graphite", "steel", "notebook", "rainbow", "candy", "citrus", "mint"];
   const SKIN_UNLOCK_RULES = {
     forest: { minutes: 10, label: "Study 10 counted minutes" },
@@ -1758,6 +1785,7 @@
     if (state.secretSkinMode === "aiden" || state.aidenDevMode || state.secretPixelUnlocked) return AIDEN_SECRET_SKINS.includes(skinId);
     if (state.secretSkinMode === "aarini") return AARINI_SECRET_SKINS.includes(skinId);
     if (state.secretSkinMode === "og") return OG_SECRET_SKINS.includes(skinId);
+    if (state.secretSkinMode === "genius") return GENIUS_SECRET_SKINS.includes(skinId);
     return false;
   }
 
@@ -1780,16 +1808,17 @@
       merged.skinsVisible = typeof merged.skinsVisible === "boolean" ? merged.skinsVisible : true;
       merged.secretPixelUnlocked = Boolean(merged.secretPixelUnlocked);
       merged.aidenDevMode = Boolean(merged.aidenDevMode || merged.secretPixelUnlocked);
-      merged.secretSkinMode = ["aiden", "aarini", "og"].includes(merged.secretSkinMode) ? merged.secretSkinMode : (merged.aidenDevMode ? "aiden" : (AARINI_SECRET_SKINS.includes(merged.selectedSkin) ? "aarini" : (OG_SECRET_SKINS.includes(merged.selectedSkin) ? "og" : "")));
+      merged.secretSkinMode = ["aiden", "aarini", "og", "genius"].includes(merged.secretSkinMode) ? merged.secretSkinMode : (merged.aidenDevMode ? "aiden" : (AARINI_SECRET_SKINS.includes(merged.selectedSkin) ? "aarini" : (OG_SECRET_SKINS.includes(merged.selectedSkin) ? "og" : (GENIUS_SECRET_SKINS.includes(merged.selectedSkin) ? "genius" : ""))));
       merged.skinSearch = typeof merged.skinSearch === "string" ? merged.skinSearch : "";
       merged.skinCategory = ["all", "clean", "light", "dark", "animated", "playful"].includes(merged.skinCategory) ? merged.skinCategory : "all";
       merged.unlockedSkins = normalizeUnlockedSkins(merged.unlockedSkins, merged);
-      if (merged.aidenDevMode) merged.unlockedSkins = SKIN_IDS.filter(id => !AARINI_SECRET_SKINS.includes(id));
+      if (merged.aidenDevMode) merged.unlockedSkins = SKIN_LIBRARY.filter(skin => !skin.secret || AIDEN_SECRET_SKINS.includes(skin.id)).map(skin => skin.id);
       const selectedSkinRecord = SKIN_LIBRARY.find(skin => skin.id === merged.selectedSkin);
       const selectedSecretVisible = !selectedSkinRecord?.secret ||
         ((merged.secretSkinMode === "aiden" || merged.aidenDevMode || merged.secretPixelUnlocked) && AIDEN_SECRET_SKINS.includes(merged.selectedSkin)) ||
         (merged.secretSkinMode === "aarini" && AARINI_SECRET_SKINS.includes(merged.selectedSkin)) ||
-        (merged.secretSkinMode === "og" && OG_SECRET_SKINS.includes(merged.selectedSkin));
+        (merged.secretSkinMode === "og" && OG_SECRET_SKINS.includes(merged.selectedSkin)) ||
+        (merged.secretSkinMode === "genius" && GENIUS_SECRET_SKINS.includes(merged.selectedSkin));
       if (!merged.unlockedSkins.includes(merged.selectedSkin) || !selectedSecretVisible) merged.selectedSkin = "default";
       merged.customSkinName = typeof merged.customSkinName === "string" ? merged.customSkinName : "";
       merged.customSkinDataUrl = typeof merged.customSkinDataUrl === "string" && merged.customSkinDataUrl.startsWith("data:image/") ? merged.customSkinDataUrl : "";
@@ -1944,6 +1973,10 @@
     return String(value || "").trim().toLowerCase() === String.fromCharCode(79, 71).toLowerCase();
   }
 
+  function isGeniusCode(value) {
+    return String(value || "").trim().toLowerCase() === String.fromCharCode(71, 69, 78, 73, 85, 83).toLowerCase();
+  }
+
   function analyticsClean(value, fallback = "") {
     return String(value || fallback).replace(/\s+/g, " ").trim().slice(0, 90);
   }
@@ -2073,7 +2106,7 @@
     state.aidenDevMode = true;
     state.skinsVisible = true;
     state.secretSkinMode = "aiden";
-    state.unlockedSkins = SKIN_IDS.filter(id => !AARINI_SECRET_SKINS.includes(id));
+    state.unlockedSkins = SKIN_LIBRARY.filter(skin => !skin.secret || AIDEN_SECRET_SKINS.includes(skin.id)).map(skin => skin.id);
     state.selectedSkin = "pixel-land-morning";
     state.musicMode = "village";
     state.tutorialSeen = false;
@@ -2082,7 +2115,7 @@
     renderAll();
     openGuide("aiden");
     startBackgroundMusic();
-    addNotification("Secret pixel mode unlocked. All skins are available.", "success", 4500);
+    addNotification("Secret pixel mode unlocked.", "success", 4500);
   }
 
   function activateNormalModeFromConfig() {
@@ -2103,17 +2136,24 @@
 
   function unlockSingleSecretSkin(skinId, notification) {
     if (!SKIN_IDS.includes(skinId)) return;
-    const nextMode = AARINI_SECRET_SKINS.includes(skinId) ? (skinId === "hacker" ? "hacker" : "aarini") : (OG_SECRET_SKINS.includes(skinId) ? "og" : "");
+    const nextMode = AARINI_SECRET_SKINS.includes(skinId) ? (skinId === "hacker" ? "hacker" : "aarini") : (OG_SECRET_SKINS.includes(skinId) ? "og" : (GENIUS_SECRET_SKINS.includes(skinId) ? "genius" : ""));
     if (nextMode) logModeChange(nextMode, "config_code");
     state.secretPixelUnlocked = false;
     state.aidenDevMode = false;
     state.skinsVisible = true;
-    state.secretSkinMode = AARINI_SECRET_SKINS.includes(skinId) ? "aarini" : (OG_SECRET_SKINS.includes(skinId) ? "og" : "");
+    state.secretSkinMode = AARINI_SECRET_SKINS.includes(skinId) ? "aarini" : (OG_SECRET_SKINS.includes(skinId) ? "og" : (GENIUS_SECRET_SKINS.includes(skinId) ? "genius" : ""));
     state.unlockedSkins = Array.from(new Set([...(state.unlockedSkins || DEFAULT_UNLOCKED_SKINS), skinId]));
     state.selectedSkin = skinId;
     saveState();
     renderAll();
     addNotification(notification, "success", 4200);
+  }
+
+  function openGeniusPage() {
+    const modal = document.getElementById("geniusModal");
+    if (!modal) return;
+    modal.classList.add("open");
+    modal.setAttribute("aria-hidden", "false");
   }
 
   function publishEpstudyVersionSelection(source = "app") {
@@ -2162,6 +2202,12 @@
     if (isOgCode(value)) {
       if (status) status.textContent = "OG mode unlocked.";
       unlockSingleSecretSkin("og-classic", "OG mode unlocked: old-school EPStudy is back.");
+      return;
+    }
+    if (isGeniusCode(value)) {
+      if (status) status.textContent = "Genius mode unlocked.";
+      unlockSingleSecretSkin("blowout", "GENIUS mode unlocked: Blowout is live.");
+      openGeniusPage();
       return;
     }
     if (isSecretPixelCode(value)) {
@@ -6241,6 +6287,17 @@
     });
     document.getElementById("commandModal")?.addEventListener("click", e => {
       if (e.target.id === "commandModal") closeCommandPalette();
+    });
+    document.getElementById("geniusCloseBtn")?.addEventListener("click", () => {
+      const modal = document.getElementById("geniusModal");
+      modal?.classList.remove("open");
+      modal?.setAttribute("aria-hidden", "true");
+      navigate("cosmetics");
+    });
+    document.getElementById("geniusModal")?.addEventListener("click", e => {
+      if (e.target.id !== "geniusModal") return;
+      e.currentTarget.classList.remove("open");
+      e.currentTarget.setAttribute("aria-hidden", "true");
     });
 
     document.addEventListener("keydown", e => {
