@@ -477,6 +477,13 @@
   .genius-bulb:nth-child(3n) { filter: hue-rotate(68deg); transform: rotate(-5deg); }
   .genius-bulb:nth-child(4n) { filter: hue-rotate(168deg); transform: rotate(6deg); }
   .genius-bulb:nth-child(5n) { transform: scale(1.14); }
+  .silly-card { max-width: 920px; overflow: hidden; background-color: #f8fbff; background-image: radial-gradient(circle at 16px 16px, transparent 0 7px, rgba(239, 68, 68, 0.42) 8px 9px, transparent 10px), conic-gradient(from 40deg at 18px 18px, rgba(239, 68, 68, 0.84) 0 18%, transparent 18% 42%, rgba(37, 99, 235, 0.84) 42% 61%, transparent 61% 100%); background-size: 48px 48px; border: 3px solid #ef4444; color: #0f172a; }
+  .silly-card h2 { color: #0f172a; font-size: clamp(2.3rem, 7vw, 5.7rem); line-height: 0.9; letter-spacing: 0; margin-bottom: 0.75rem; text-transform: uppercase; text-shadow: 4px 4px 0 rgba(37, 99, 235, 0.22); }
+  .silly-card p { color: #1d4ed8; font-weight: 900; }
+  .silly-swirls { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 14px; margin: 1.4rem 0; }
+  .silly-swirl { width: 42px; height: 42px; margin: 0 auto; border-radius: 50%; background: conic-gradient(from 20deg, #ef4444 0 22%, #ffffff 22% 38%, #2563eb 38% 62%, #ffffff 62% 78%, #ef4444 78% 100%); border: 2px solid rgba(15, 23, 42, 0.18); box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.72), 0 10px 22px rgba(37, 99, 235, 0.18); }
+  .silly-swirl:nth-child(2n) { transform: rotate(34deg) scale(0.9); }
+  .silly-swirl:nth-child(3n) { transform: rotate(-28deg) scale(1.12); }
   .guide-steps { counter-reset: guide; list-style: none; padding-left: 0 !important; display: grid; gap: 10px; }
   .guide-steps li { counter-increment: guide; display: flex; gap: 12px; align-items: flex-start; margin: 0; padding: 12px; background: var(--bg-gray); border: 1px solid var(--border); border-radius: var(--radius-md); color: var(--text-main); line-height: 1.45; overflow-wrap: anywhere; }
   .guide-steps li::before { content: counter(guide); flex: 0 0 32px; width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--radius-md); background: var(--navy-primary); color: var(--primary-content); font-weight: 800; font-size: 0.82rem; }
@@ -611,6 +618,10 @@
   body.skin-lightbulb::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background-image: linear-gradient(90deg, transparent 16px, rgba(100, 116, 139, 0.34) 16px 22px, transparent 22px), linear-gradient(90deg, transparent 60px, rgba(100, 116, 139, 0.28) 60px 66px, transparent 66px); background-size: 92px 92px; opacity: 0.45; }
   body.skin-lightbulb .panel, body.skin-lightbulb .task-item, body.skin-lightbulb .field { box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.3), 0 14px 38px rgba(250, 204, 21, 0.16); }
   body.skin-lightbulb .button.primary, body.skin-lightbulb .calendar-task { background: linear-gradient(135deg, #0284c7, #16a34a); color: #ffffff; }
+  body.skin-sillybilly { background-color: #f8fbff; background-image: radial-gradient(circle at 14px 14px, transparent 0 7px, rgba(239, 68, 68, 0.36) 8px 9px, transparent 10px), conic-gradient(from 34deg at 18px 18px, rgba(239, 68, 68, 0.78) 0 18%, transparent 18% 40%, rgba(37, 99, 235, 0.78) 40% 60%, transparent 60% 100%), linear-gradient(135deg, rgba(239, 68, 68, 0.16), rgba(37, 99, 235, 0.18)); background-size: 42px 42px, 42px 42px, 100% 100%; --bg-gray: rgba(239, 246, 255, 0.78); --panel: rgba(255, 255, 255, 0.88); --text-main: #334155; --text-dark: #172554; --muted: #1d4ed8; --border: rgba(239, 68, 68, 0.28); --navy-primary: #1d4ed8; --primary-content: #ffffff; --gold: #ef4444; }
+  body.skin-sillybilly::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background-image: conic-gradient(from 90deg at 18px 18px, transparent 0 28%, rgba(239, 68, 68, 0.28) 28% 39%, transparent 39% 58%, rgba(37, 99, 235, 0.28) 58% 70%, transparent 70%); background-size: 58px 58px; opacity: 0.76; }
+  body.skin-sillybilly .panel, body.skin-sillybilly .task-item, body.skin-sillybilly .field { box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.18), 0 14px 36px rgba(37, 99, 235, 0.14); }
+  body.skin-sillybilly .button.primary, body.skin-sillybilly .calendar-task { background: linear-gradient(135deg, #ef4444, #2563eb); color: #ffffff; }
   body.skin-catstorm { background-color: #020617; background-image: radial-gradient(circle at 15% 18%, rgba(148, 163, 184, 0.16), transparent 24%), radial-gradient(circle at 78% 12%, rgba(244, 114, 182, 0.14), transparent 22%), repeating-linear-gradient(35deg, transparent 0 58px, rgba(255, 255, 255, 0.06) 58px 60px); --bg-gray: rgba(2, 6, 23, 0.78); --panel: rgba(3, 7, 18, 0.9); --text-main: #e5e7eb; --text-dark: #ffffff; --muted: #c4b5fd; --border: rgba(244, 114, 182, 0.26); --navy-primary: #f472b6; --primary-content: #020617; --gold: #f9a8d4; }
   body.skin-catstorm::after { content: "🐈‍⬛ 🐈 🐱 🐾 🐈‍⬛ 🐱 🐾 🐈 🐈‍⬛ 🐾 🐱 🐈"; position: fixed; inset: 0; z-index: -1; pointer-events: none; color: rgba(255, 255, 255, 0.22); font-size: clamp(2.2rem, 6vw, 5rem); line-height: 1.4; word-spacing: 1.2rem; overflow: hidden; transform: rotate(-9deg) scale(1.12); transform-origin: center; }
   body.skin-catstorm .panel, body.skin-catstorm .task-item, body.skin-catstorm .field { background: rgba(3, 7, 18, 0.92); border-color: rgba(244, 114, 182, 0.3); box-shadow: 0 18px 52px rgba(0, 0, 0, 0.35); }
@@ -1280,6 +1291,23 @@
   </div>
 </div>
 
+<div id="sillyModal" class="modal-backdrop" aria-hidden="true">
+  <div class="modal-card silly-card" data-analytics-ignore>
+    <p class="eyebrow" style="color:#ef4444; margin-bottom: 0.6rem;">SILLYBILLY MODE</p>
+    <h2>HI, UR SELLING</h2>
+    <p>Sillybilly mode unlocked a red and blue swirl wallpaper.</p>
+    <div class="silly-swirls" aria-hidden="true">
+      <span class="silly-swirl"></span><span class="silly-swirl"></span><span class="silly-swirl"></span><span class="silly-swirl"></span><span class="silly-swirl"></span><span class="silly-swirl"></span>
+      <span class="silly-swirl"></span><span class="silly-swirl"></span><span class="silly-swirl"></span><span class="silly-swirl"></span><span class="silly-swirl"></span><span class="silly-swirl"></span>
+      <span class="silly-swirl"></span><span class="silly-swirl"></span><span class="silly-swirl"></span><span class="silly-swirl"></span><span class="silly-swirl"></span><span class="silly-swirl"></span>
+      <span class="silly-swirl"></span><span class="silly-swirl"></span><span class="silly-swirl"></span><span class="silly-swirl"></span><span class="silly-swirl"></span><span class="silly-swirl"></span>
+    </div>
+    <div class="row" style="justify-content:flex-end;">
+      <button id="sillyCloseBtn" class="button primary" type="button">Silly</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modals -->
 <div id="welcomeModal" class="modal-backdrop" aria-hidden="true">
   <div class="modal-card welcome-card">
@@ -1613,6 +1641,7 @@
     { id: "hacker", name: "Hacker", detail: "Green terminal glow", category: "dark", swatches: ["#001208", "#22c55e"], secret: true },
     { id: "og-classic", name: "OG Classic", detail: "Original EPStudy old-school vibes", category: "clean", swatches: ["#002b5c", "#ffc72c"], secret: true },
     { id: "lightbulb", name: "Lightbulb", detail: "Bright idea wallpaper covered with lightbulbs", category: "playful", swatches: ["#facc15", "#0284c7"], secret: true },
+    { id: "sillybilly", name: "Sillybilly", detail: "Red and blue tiny swirl wallpaper", category: "playful", swatches: ["#ef4444", "#2563eb"], secret: true },
     { id: "blowout", name: "Blowout", detail: "Maximum blue, green, and yellow chaos", category: "playful", swatches: ["#0284c7", "#facc15"], secret: true }
   ];
   const SKIN_IDS = SKIN_LIBRARY.map(skin => skin.id);
@@ -1620,6 +1649,7 @@
   const AARINI_SECRET_SKINS = ["catstorm", "hacker"];
   const OG_SECRET_SKINS = ["og-classic"];
   const GENIUS_SECRET_SKINS = ["lightbulb", "blowout"];
+  const SILLYBILLY_SECRET_SKINS = ["sillybilly"];
   const DEFAULT_UNLOCKED_SKINS = ["default", "campus", "library", "graphite", "steel", "notebook", "rainbow", "candy", "citrus", "mint"];
   const SKIN_UNLOCK_RULES = {
     forest: { minutes: 10, label: "Study 10 counted minutes" },
@@ -1794,6 +1824,7 @@
     if (state.secretSkinMode === "aarini") return AARINI_SECRET_SKINS.includes(skinId);
     if (state.secretSkinMode === "og") return OG_SECRET_SKINS.includes(skinId);
     if (state.secretSkinMode === "genius") return GENIUS_SECRET_SKINS.includes(skinId);
+    if (state.secretSkinMode === "sillybilly") return SILLYBILLY_SECRET_SKINS.includes(skinId);
     return false;
   }
 
@@ -1816,7 +1847,7 @@
       merged.skinsVisible = typeof merged.skinsVisible === "boolean" ? merged.skinsVisible : true;
       merged.secretPixelUnlocked = Boolean(merged.secretPixelUnlocked);
       merged.aidenDevMode = Boolean(merged.aidenDevMode || merged.secretPixelUnlocked);
-      merged.secretSkinMode = ["aiden", "aarini", "og", "genius"].includes(merged.secretSkinMode) ? merged.secretSkinMode : (merged.aidenDevMode ? "aiden" : (AARINI_SECRET_SKINS.includes(merged.selectedSkin) ? "aarini" : (OG_SECRET_SKINS.includes(merged.selectedSkin) ? "og" : (GENIUS_SECRET_SKINS.includes(merged.selectedSkin) ? "genius" : ""))));
+      merged.secretSkinMode = ["aiden", "aarini", "og", "genius", "sillybilly"].includes(merged.secretSkinMode) ? merged.secretSkinMode : (merged.aidenDevMode ? "aiden" : (AARINI_SECRET_SKINS.includes(merged.selectedSkin) ? "aarini" : (OG_SECRET_SKINS.includes(merged.selectedSkin) ? "og" : (GENIUS_SECRET_SKINS.includes(merged.selectedSkin) ? "genius" : (SILLYBILLY_SECRET_SKINS.includes(merged.selectedSkin) ? "sillybilly" : "")))));
       merged.skinSearch = typeof merged.skinSearch === "string" ? merged.skinSearch : "";
       merged.skinCategory = ["all", "clean", "light", "dark", "animated", "playful"].includes(merged.skinCategory) ? merged.skinCategory : "all";
       merged.unlockedSkins = normalizeUnlockedSkins(merged.unlockedSkins, merged);
@@ -1826,7 +1857,8 @@
         ((merged.secretSkinMode === "aiden" || merged.aidenDevMode || merged.secretPixelUnlocked) && AIDEN_SECRET_SKINS.includes(merged.selectedSkin)) ||
         (merged.secretSkinMode === "aarini" && AARINI_SECRET_SKINS.includes(merged.selectedSkin)) ||
         (merged.secretSkinMode === "og" && OG_SECRET_SKINS.includes(merged.selectedSkin)) ||
-        (merged.secretSkinMode === "genius" && GENIUS_SECRET_SKINS.includes(merged.selectedSkin));
+        (merged.secretSkinMode === "genius" && GENIUS_SECRET_SKINS.includes(merged.selectedSkin)) ||
+        (merged.secretSkinMode === "sillybilly" && SILLYBILLY_SECRET_SKINS.includes(merged.selectedSkin));
       if (!merged.unlockedSkins.includes(merged.selectedSkin) || !selectedSecretVisible) merged.selectedSkin = "default";
       merged.customSkinName = typeof merged.customSkinName === "string" ? merged.customSkinName : "";
       merged.customSkinDataUrl = typeof merged.customSkinDataUrl === "string" && merged.customSkinDataUrl.startsWith("data:image/") ? merged.customSkinDataUrl : "";
@@ -1986,7 +2018,12 @@
   }
 
   function isSixSevenCode(value) {
-    return String(value || "").trim().toLowerCase() === String.fromCharCode(83, 73, 88, 83, 69, 86, 69, 78).toLowerCase();
+    const code = String(value || "").trim().toLowerCase();
+    return code === "67" || code === String.fromCharCode(83, 73, 88, 83, 69, 86, 69, 78).toLowerCase();
+  }
+
+  function isSillybillyCode(value) {
+    return String(value || "").trim().toLowerCase() === String.fromCharCode(83, 73, 76, 76, 89, 66, 73, 76, 76, 89).toLowerCase();
   }
 
   function analyticsClean(value, fallback = "") {
@@ -2152,12 +2189,12 @@
 
   function unlockSingleSecretSkin(skinId, notification) {
     if (!SKIN_IDS.includes(skinId)) return;
-    const nextMode = AARINI_SECRET_SKINS.includes(skinId) ? (skinId === "hacker" ? "hacker" : "aarini") : (OG_SECRET_SKINS.includes(skinId) ? "og" : (GENIUS_SECRET_SKINS.includes(skinId) ? "genius" : ""));
+    const nextMode = AARINI_SECRET_SKINS.includes(skinId) ? (skinId === "hacker" ? "hacker" : "aarini") : (OG_SECRET_SKINS.includes(skinId) ? "og" : (GENIUS_SECRET_SKINS.includes(skinId) ? "genius" : (SILLYBILLY_SECRET_SKINS.includes(skinId) ? "sillybilly" : "")));
     if (nextMode) logModeChange(nextMode, "config_code");
     state.secretPixelUnlocked = false;
     state.aidenDevMode = false;
     state.skinsVisible = true;
-    state.secretSkinMode = AARINI_SECRET_SKINS.includes(skinId) ? "aarini" : (OG_SECRET_SKINS.includes(skinId) ? "og" : (GENIUS_SECRET_SKINS.includes(skinId) ? "genius" : ""));
+    state.secretSkinMode = AARINI_SECRET_SKINS.includes(skinId) ? "aarini" : (OG_SECRET_SKINS.includes(skinId) ? "og" : (GENIUS_SECRET_SKINS.includes(skinId) ? "genius" : (SILLYBILLY_SECRET_SKINS.includes(skinId) ? "sillybilly" : "")));
     state.unlockedSkins = Array.from(new Set([...(state.unlockedSkins || DEFAULT_UNLOCKED_SKINS), skinId]));
     state.selectedSkin = skinId;
     saveState();
@@ -2167,6 +2204,13 @@
 
   function openGeniusPage() {
     const modal = document.getElementById("geniusModal");
+    if (!modal) return;
+    modal.classList.add("open");
+    modal.setAttribute("aria-hidden", "false");
+  }
+
+  function openSillybillyPage() {
+    const modal = document.getElementById("sillyModal");
     if (!modal) return;
     modal.classList.add("open");
     modal.setAttribute("aria-hidden", "false");
@@ -2269,6 +2313,12 @@
     if (isSixSevenCode(value)) {
       if (status) status.textContent = "67";
       activateSixSevenMode();
+      return;
+    }
+    if (isSillybillyCode(value)) {
+      if (status) status.textContent = "Sillybilly mode unlocked.";
+      unlockSingleSecretSkin("sillybilly", "SILLYBILLY mode unlocked: red and blue swirls are live.");
+      openSillybillyPage();
       return;
     }
     if (isSecretPixelCode(value)) {
@@ -6357,6 +6407,17 @@
     });
     document.getElementById("geniusModal")?.addEventListener("click", e => {
       if (e.target.id !== "geniusModal") return;
+      e.currentTarget.classList.remove("open");
+      e.currentTarget.setAttribute("aria-hidden", "true");
+    });
+    document.getElementById("sillyCloseBtn")?.addEventListener("click", () => {
+      const modal = document.getElementById("sillyModal");
+      modal?.classList.remove("open");
+      modal?.setAttribute("aria-hidden", "true");
+      navigate("cosmetics");
+    });
+    document.getElementById("sillyModal")?.addEventListener("click", e => {
+      if (e.target.id !== "sillyModal") return;
       e.currentTarget.classList.remove("open");
       e.currentTarget.setAttribute("aria-hidden", "true");
     });
