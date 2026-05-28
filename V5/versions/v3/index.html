@@ -1748,6 +1748,8 @@
   }
 
   function isSkinUnlocked(skinId) {
+    const skin = SKIN_LIBRARY.find(item => item.id === skinId);
+    if (skin?.secret && !isSecretSkinVisible(skinId)) return false;
     return (state.unlockedSkins || DEFAULT_UNLOCKED_SKINS).includes(skinId);
   }
 
@@ -1756,7 +1758,7 @@
     if (state.secretSkinMode === "aiden" || state.aidenDevMode || state.secretPixelUnlocked) return AIDEN_SECRET_SKINS.includes(skinId);
     if (state.secretSkinMode === "aarini") return AARINI_SECRET_SKINS.includes(skinId);
     if (state.secretSkinMode === "og") return OG_SECRET_SKINS.includes(skinId);
-    return isSkinUnlocked(skinId);
+    return false;
   }
 
   function loadState() {
@@ -1783,7 +1785,12 @@
       merged.skinCategory = ["all", "clean", "light", "dark", "animated", "playful"].includes(merged.skinCategory) ? merged.skinCategory : "all";
       merged.unlockedSkins = normalizeUnlockedSkins(merged.unlockedSkins, merged);
       if (merged.aidenDevMode) merged.unlockedSkins = SKIN_IDS.filter(id => !AARINI_SECRET_SKINS.includes(id));
-      if (!merged.unlockedSkins.includes(merged.selectedSkin)) merged.selectedSkin = "default";
+      const selectedSkinRecord = SKIN_LIBRARY.find(skin => skin.id === merged.selectedSkin);
+      const selectedSecretVisible = !selectedSkinRecord?.secret ||
+        ((merged.secretSkinMode === "aiden" || merged.aidenDevMode || merged.secretPixelUnlocked) && AIDEN_SECRET_SKINS.includes(merged.selectedSkin)) ||
+        (merged.secretSkinMode === "aarini" && AARINI_SECRET_SKINS.includes(merged.selectedSkin)) ||
+        (merged.secretSkinMode === "og" && OG_SECRET_SKINS.includes(merged.selectedSkin));
+      if (!merged.unlockedSkins.includes(merged.selectedSkin) || !selectedSecretVisible) merged.selectedSkin = "default";
       merged.customSkinName = typeof merged.customSkinName === "string" ? merged.customSkinName : "";
       merged.customSkinDataUrl = typeof merged.customSkinDataUrl === "string" && merged.customSkinDataUrl.startsWith("data:image/") ? merged.customSkinDataUrl : "";
       merged.taskFilters = typeof merged.taskFilters === "object" && merged.taskFilters ? { ...base.taskFilters, ...merged.taskFilters } : { ...base.taskFilters };
