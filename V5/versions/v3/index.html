@@ -2130,8 +2130,7 @@
     addNotification("Secret pixel mode unlocked.", "success", 4500);
   }
 
-  function activateNormalModeFromConfig() {
-    logModeChange("normal", "config_code");
+  function setPlainNormalModeState() {
     state.secretPixelUnlocked = false;
     state.aidenDevMode = false;
     state.secretSkinMode = "";
@@ -2139,8 +2138,13 @@
     state.musicMode = "none";
     state.tutorialSeen = true;
     stopBackgroundMusic();
-    saveState();
     syncMusicSettings();
+  }
+
+  function activateNormalModeFromConfig() {
+    logModeChange("normal", "config_code");
+    setPlainNormalModeState();
+    saveState();
     renderAll();
     navigate("dashboard");
     addNotification("Normal mode restored.", "success", 2600);
@@ -2190,6 +2194,9 @@
   }
 
   function activateSixSevenMode() {
+    setPlainNormalModeState();
+    saveState();
+    renderAll();
     document.body.classList.add("sixseven-mode");
     replaceTextWithSixSeven();
     if (sixSevenObserver) sixSevenObserver.disconnect();
