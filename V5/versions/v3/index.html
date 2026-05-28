@@ -604,6 +604,10 @@
   body.skin-blowout { background: radial-gradient(circle at 20% 16%, #fef08a 0 14%, transparent 16%), radial-gradient(circle at 78% 22%, #22c55e 0 16%, transparent 18%), repeating-conic-gradient(from 15deg, #facc15 0 8deg, #22c55e 8deg 17deg, #0284c7 17deg 28deg); --bg-gray: #fef08a; --panel: #fef08a; --text-main: #052e16; --text-dark: #001b44; --muted: #14532d; --border: #0284c7; --navy-primary: #0284c7; --primary-content: #ffffff; --gold: #facc15; }
   body.skin-blowout .panel, body.skin-blowout .task-item, body.skin-blowout .button, body.skin-blowout .field { background: #fef08a; border-width: 4px; box-shadow: 10px 10px 0 #22c55e, -6px -6px 0 #0284c7; }
   body.skin-blowout .button.primary, body.skin-blowout .calendar-task { background: #0284c7; color: #ffffff; }
+  body.skin-lightbulb { background-color: #fff9c4; background-image: radial-gradient(circle at 18px 20px, #fff 0 5px, #fde047 6px 15px, transparent 16px), radial-gradient(circle at 62px 58px, #fff 0 4px, #facc15 5px 14px, transparent 15px), linear-gradient(180deg, rgba(14, 165, 233, 0.24), rgba(34, 197, 94, 0.18)); background-size: 92px 92px, 92px 92px, 100% 100%; --bg-gray: rgba(254, 249, 195, 0.82); --panel: rgba(255, 255, 255, 0.86); --text-main: #334155; --text-dark: #001b44; --muted: #0f766e; --border: rgba(2, 132, 199, 0.28); --navy-primary: #0284c7; --primary-content: #ffffff; --gold: #facc15; }
+  body.skin-lightbulb::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background-image: linear-gradient(90deg, transparent 16px, rgba(100, 116, 139, 0.34) 16px 22px, transparent 22px), linear-gradient(90deg, transparent 60px, rgba(100, 116, 139, 0.28) 60px 66px, transparent 66px); background-size: 92px 92px; opacity: 0.45; }
+  body.skin-lightbulb .panel, body.skin-lightbulb .task-item, body.skin-lightbulb .field { box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.3), 0 14px 38px rgba(250, 204, 21, 0.16); }
+  body.skin-lightbulb .button.primary, body.skin-lightbulb .calendar-task { background: linear-gradient(135deg, #0284c7, #16a34a); color: #ffffff; }
   body.skin-catstorm { background-color: #020617; background-image: radial-gradient(circle at 15% 18%, rgba(148, 163, 184, 0.16), transparent 24%), radial-gradient(circle at 78% 12%, rgba(244, 114, 182, 0.14), transparent 22%), repeating-linear-gradient(35deg, transparent 0 58px, rgba(255, 255, 255, 0.06) 58px 60px); --bg-gray: rgba(2, 6, 23, 0.78); --panel: rgba(3, 7, 18, 0.9); --text-main: #e5e7eb; --text-dark: #ffffff; --muted: #c4b5fd; --border: rgba(244, 114, 182, 0.26); --navy-primary: #f472b6; --primary-content: #020617; --gold: #f9a8d4; }
   body.skin-catstorm::after { content: "🐈‍⬛ 🐈 🐱 🐾 🐈‍⬛ 🐱 🐾 🐈 🐈‍⬛ 🐾 🐱 🐈"; position: fixed; inset: 0; z-index: -1; pointer-events: none; color: rgba(255, 255, 255, 0.22); font-size: clamp(2.2rem, 6vw, 5rem); line-height: 1.4; word-spacing: 1.2rem; overflow: hidden; transform: rotate(-9deg) scale(1.12); transform-origin: center; }
   body.skin-catstorm .panel, body.skin-catstorm .task-item, body.skin-catstorm .field { background: rgba(3, 7, 18, 0.92); border-color: rgba(244, 114, 182, 0.3); box-shadow: 0 18px 52px rgba(0, 0, 0, 0.35); }
@@ -1260,7 +1264,7 @@
   <div class="modal-card genius-card" data-analytics-ignore>
     <p class="eyebrow" style="color:#0284c7; margin-bottom: 0.6rem;">GENIUS MODE</p>
     <h2>Bright Idea Unlocked</h2>
-    <p>Blowout is now its own GENIUS secret. It is loud, brilliant, and only visible in Genius mode.</p>
+    <p>Genius mode now has a wallpaper covered in bright idea lightbulbs. Blowout lives here too, if you want maximum brightness.</p>
     <div class="genius-bulbs" aria-hidden="true">
       <span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span>
       <span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span><span class="genius-bulb"></span>
@@ -1605,13 +1609,14 @@
     { id: "catstorm", name: "Catstorm", detail: "Black cat mode with lots of cats", category: "dark", swatches: ["#020617", "#f472b6"], secret: true },
     { id: "hacker", name: "Hacker", detail: "Green terminal glow", category: "dark", swatches: ["#001208", "#22c55e"], secret: true },
     { id: "og-classic", name: "OG Classic", detail: "Original EPStudy old-school vibes", category: "clean", swatches: ["#002b5c", "#ffc72c"], secret: true },
+    { id: "lightbulb", name: "Lightbulb", detail: "Bright idea wallpaper covered with lightbulbs", category: "playful", swatches: ["#facc15", "#0284c7"], secret: true },
     { id: "blowout", name: "Blowout", detail: "Maximum blue, green, and yellow chaos", category: "playful", swatches: ["#0284c7", "#facc15"], secret: true }
   ];
   const SKIN_IDS = SKIN_LIBRARY.map(skin => skin.id);
   const AIDEN_SECRET_SKINS = ["pixel-ocean-morning", "pixel-land-morning", "pixel-land-night"];
   const AARINI_SECRET_SKINS = ["catstorm", "hacker"];
   const OG_SECRET_SKINS = ["og-classic"];
-  const GENIUS_SECRET_SKINS = ["blowout"];
+  const GENIUS_SECRET_SKINS = ["lightbulb", "blowout"];
   const DEFAULT_UNLOCKED_SKINS = ["default", "campus", "library", "graphite", "steel", "notebook", "rainbow", "candy", "citrus", "mint"];
   const SKIN_UNLOCK_RULES = {
     forest: { minutes: 10, label: "Study 10 counted minutes" },
@@ -2206,7 +2211,7 @@
     }
     if (isGeniusCode(value)) {
       if (status) status.textContent = "Genius mode unlocked.";
-      unlockSingleSecretSkin("blowout", "GENIUS mode unlocked: Blowout is live.");
+      unlockSingleSecretSkin("lightbulb", "GENIUS mode unlocked: Lightbulb is live.");
       openGeniusPage();
       return;
     }
