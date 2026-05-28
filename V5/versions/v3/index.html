@@ -71,6 +71,9 @@
   .nav-btn.active .nav-icon { background: var(--navy-primary); border-color: var(--navy-primary); color: var(--primary-content); }
   .page { display: none; animation: fadeIn 0.3s ease; }
   .page.active { display: block; min-height: calc(100vh - 172px); }
+  body.sixseven-mode { background: #ff3bbd !important; background-image: radial-gradient(circle at 18% 18%, #fff 0 3%, transparent 4%), radial-gradient(circle at 82% 22%, #faccff 0 6%, transparent 7%), linear-gradient(135deg, #ff1493, #ff5bd6 48%, #ffb3ef) !important; --bg-gray: #ff78d6; --panel: rgba(255, 255, 255, 0.86); --text-main: #67004a; --text-dark: #67004a; --muted: #8a005f; --border: #ffeb3b; --navy-primary: #ffeb3b; --primary-content: #67004a; --gold: #67ff67; }
+  body.sixseven-mode .panel, body.sixseven-mode .topbar, body.sixseven-mode .navbar, body.sixseven-mode .task-item, body.sixseven-mode .field, body.sixseven-mode .button { border-color: #ffeb3b !important; box-shadow: 6px 6px 0 #67ff67, -3px -3px 0 #ffeb3b !important; }
+  body.sixseven-mode * { color: #67004a !important; text-shadow: 0 0 10px rgba(255, 255, 255, 0.34); }
   #page-timer.active { height: calc(100vh - 230px); min-height: 0; overflow: hidden; }
   #page-timer .section-title { margin: 0 0 0.65rem; padding-bottom: 0.5rem; }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -1982,6 +1985,10 @@
     return String(value || "").trim().toLowerCase() === String.fromCharCode(71, 69, 78, 73, 85, 83).toLowerCase();
   }
 
+  function isSixSevenCode(value) {
+    return String(value || "").trim().toLowerCase() === String.fromCharCode(83, 73, 88, 83, 69, 86, 69, 78).toLowerCase();
+  }
+
   function analyticsClean(value, fallback = "") {
     return String(value || fallback).replace(/\s+/g, " ").trim().slice(0, 90);
   }
@@ -2161,6 +2168,43 @@
     modal.setAttribute("aria-hidden", "false");
   }
 
+  let sixSevenObserver = null;
+
+  function replaceTextWithSixSeven(root = document.body) {
+    if (!root) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        const parent = node.parentElement;
+        if (!parent || ["SCRIPT", "STYLE", "NOSCRIPT", "TEXTAREA"].includes(parent.tagName)) return NodeFilter.FILTER_REJECT;
+        return node.nodeValue && node.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      }
+    });
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(node => { node.nodeValue = node.nodeValue.replace(/\S+/g, "67"); });
+    root.querySelectorAll?.("input, textarea, select").forEach(control => {
+      if (control.placeholder) control.placeholder = "67";
+      if (["button", "submit", "reset"].includes(String(control.type || "").toLowerCase()) && control.value) control.value = "67";
+    });
+    document.title = "67";
+  }
+
+  function activateSixSevenMode() {
+    document.body.classList.add("sixseven-mode");
+    replaceTextWithSixSeven();
+    if (sixSevenObserver) sixSevenObserver.disconnect();
+    sixSevenObserver = new MutationObserver(records => {
+      if (!document.body.classList.contains("sixseven-mode")) return;
+      records.forEach(record => {
+        record.addedNodes.forEach(node => {
+          if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim()) node.nodeValue = node.nodeValue.replace(/\S+/g, "67");
+          else if (node.nodeType === Node.ELEMENT_NODE) replaceTextWithSixSeven(node);
+        });
+      });
+    });
+    sixSevenObserver.observe(document.body, { childList: true, subtree: true });
+  }
+
   function publishEpstudyVersionSelection(source = "app") {
     try { localStorage.setItem(VERSION_STORAGE_KEY, EPSTUDY_APP_VERSION); } catch {}
     window.postMessage({ type: "EPSTUDY_VERSION_SELECTED", version: EPSTUDY_APP_VERSION, source }, bridgeTargetOrigin());
@@ -2213,6 +2257,11 @@
       if (status) status.textContent = "Genius mode unlocked.";
       unlockSingleSecretSkin("lightbulb", "GENIUS mode unlocked: Lightbulb is live.");
       openGeniusPage();
+      return;
+    }
+    if (isSixSevenCode(value)) {
+      if (status) status.textContent = "67";
+      activateSixSevenMode();
       return;
     }
     if (isSecretPixelCode(value)) {
