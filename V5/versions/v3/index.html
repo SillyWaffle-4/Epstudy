@@ -601,6 +601,11 @@
   body.skin-hacker { background: #001208; background-image: repeating-linear-gradient(0deg, rgba(34, 197, 94, 0.12) 0 1px, transparent 1px 22px), repeating-linear-gradient(90deg, rgba(34, 197, 94, 0.06) 0 1px, transparent 1px 24px); --bg-gray: rgba(0, 24, 10, 0.82); --panel: rgba(0, 18, 8, 0.92); --text-main: #bbf7d0; --text-dark: #dcfce7; --muted: #86efac; --border: rgba(34, 197, 94, 0.28); --navy-primary: #22c55e; --primary-content: #001208; --gold: #a3e635; }
   body.skin-hacker::after { content: "01001000 01000001 01000011 01001011 00100000 101010 01100101 01110000 01110011 01110100 01110101 01100100 01111001"; position: fixed; inset: 0; z-index: -1; pointer-events: none; color: rgba(34, 197, 94, 0.2); font-family: "Courier New", monospace; font-size: clamp(1rem, 2vw, 1.8rem); line-height: 1.7; letter-spacing: 0.08em; overflow: hidden; padding: 2rem; }
   body.skin-hacker .panel, body.skin-hacker .task-item, body.skin-hacker .field { border-color: rgba(34, 197, 94, 0.34); box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.16), 0 0 30px rgba(34, 197, 94, 0.1); }
+  body.skin-og-classic { background: #dce7f2; background-image: linear-gradient(90deg, rgba(0, 43, 92, 0.08) 1px, transparent 1px), linear-gradient(0deg, rgba(0, 43, 92, 0.08) 1px, transparent 1px); background-size: 24px 24px; --bg-gray: #edf2f7; --panel: #ffffff; --text-main: #334155; --text-dark: #001f3f; --muted: #475569; --border: #94a3b8; --navy-primary: #002b5c; --primary-content: #ffffff; --gold: #ffc72c; }
+  body.skin-og-classic .panel, body.skin-og-classic .task-item, body.skin-og-classic .field, body.skin-og-classic .button { border-radius: 3px; box-shadow: 3px 3px 0 rgba(0, 43, 92, 0.16); }
+  body.skin-og-classic .topbar { border-radius: 0 0 3px 3px; }
+  body.skin-og-classic .button.primary, body.skin-og-classic .calendar-task { background: #002b5c; color: #ffffff; }
+  body.skin-og-classic .section-title::after { content: "  v1"; color: var(--gold); font-size: 0.82rem; letter-spacing: 0; }
   body.skin-pixel-ocean-morning, body.skin-pixel-land-morning, body.skin-pixel-land-night { background-size: 148px 148px, 100% 100%; background-repeat: no-repeat, no-repeat; background-position: left top, center; }
   body.skin-pixel-ocean-morning .panel, body.skin-pixel-land-morning .panel, body.skin-pixel-land-night .panel { box-shadow: 8px 8px 0 color-mix(in srgb, var(--navy-primary) 16%, transparent); }
   body.secret-pixel-enabled, body.secret-pixel-enabled * { image-rendering: pixelated; border-radius: 0 !important; }
@@ -711,8 +716,8 @@
       <div class="calendar-top" style="margin-bottom: 0;">
         <h2>Today Plan</h2>
         <div class="row">
-          <button id="startTodayPlanBtn" class="button primary" type="button">Start First</button>
-          <button class="button" type="button" onclick="navigate('tasks')">Open Tasks</button>
+          <button id="startTodayPlanBtn" class="button primary" type="button">Start First Task</button>
+          <button class="button" type="button" onclick="navigate('tasks')">Open Task Page</button>
         </div>
       </div>
       <div id="todayPlanList" class="today-plan-list"></div>
@@ -1572,11 +1577,13 @@
     { id: "pixel-land-night", name: "Pixel Land Night", detail: "Blocky night grass under moonlight", category: "dark", swatches: ["#111827", "#22c55e"], secret: true },
     { id: "catstorm", name: "Catstorm", detail: "Black cat mode with lots of cats", category: "dark", swatches: ["#020617", "#f472b6"], secret: true },
     { id: "hacker", name: "Hacker", detail: "Green terminal glow", category: "dark", swatches: ["#001208", "#22c55e"], secret: true },
+    { id: "og-classic", name: "OG Classic", detail: "Original EPStudy old-school vibes", category: "clean", swatches: ["#002b5c", "#ffc72c"], secret: true },
     { id: "blowout", name: "Blowout", detail: "Maximum blue, green, and yellow chaos", category: "playful", swatches: ["#0284c7", "#facc15"], secret: true }
   ];
   const SKIN_IDS = SKIN_LIBRARY.map(skin => skin.id);
   const AIDEN_SECRET_SKINS = ["pixel-ocean-morning", "pixel-land-morning", "pixel-land-night", "blowout"];
   const AARINI_SECRET_SKINS = ["catstorm", "hacker"];
+  const OG_SECRET_SKINS = ["og-classic"];
   const DEFAULT_UNLOCKED_SKINS = ["default", "campus", "library", "graphite", "steel", "notebook", "rainbow", "candy", "citrus", "mint"];
   const SKIN_UNLOCK_RULES = {
     forest: { minutes: 10, label: "Study 10 counted minutes" },
@@ -1747,6 +1754,7 @@
     if (!SKIN_LIBRARY.find(skin => skin.id === skinId)?.secret) return true;
     if (state.secretSkinMode === "aiden" || state.aidenDevMode || state.secretPixelUnlocked) return AIDEN_SECRET_SKINS.includes(skinId);
     if (state.secretSkinMode === "aarini") return AARINI_SECRET_SKINS.includes(skinId);
+    if (state.secretSkinMode === "og") return OG_SECRET_SKINS.includes(skinId);
     return isSkinUnlocked(skinId);
   }
 
@@ -1769,7 +1777,7 @@
       merged.skinsVisible = typeof merged.skinsVisible === "boolean" ? merged.skinsVisible : true;
       merged.secretPixelUnlocked = Boolean(merged.secretPixelUnlocked);
       merged.aidenDevMode = Boolean(merged.aidenDevMode || merged.secretPixelUnlocked);
-      merged.secretSkinMode = ["aiden", "aarini"].includes(merged.secretSkinMode) ? merged.secretSkinMode : (merged.aidenDevMode ? "aiden" : (AARINI_SECRET_SKINS.includes(merged.selectedSkin) ? "aarini" : ""));
+      merged.secretSkinMode = ["aiden", "aarini", "og"].includes(merged.secretSkinMode) ? merged.secretSkinMode : (merged.aidenDevMode ? "aiden" : (AARINI_SECRET_SKINS.includes(merged.selectedSkin) ? "aarini" : (OG_SECRET_SKINS.includes(merged.selectedSkin) ? "og" : "")));
       merged.skinSearch = typeof merged.skinSearch === "string" ? merged.skinSearch : "";
       merged.skinCategory = ["all", "clean", "light", "dark", "animated", "playful"].includes(merged.skinCategory) ? merged.skinCategory : "all";
       merged.unlockedSkins = normalizeUnlockedSkins(merged.unlockedSkins, merged);
@@ -1924,6 +1932,10 @@
     return String(value || "").trim().toLowerCase() === String.fromCharCode(72, 65, 67, 75, 69, 82).toLowerCase();
   }
 
+  function isOgCode(value) {
+    return String(value || "").trim().toLowerCase() === String.fromCharCode(79, 71).toLowerCase();
+  }
+
   function unlockSecretPixelMode() {
     state.secretPixelUnlocked = true;
     state.aidenDevMode = true;
@@ -1961,7 +1973,7 @@
     state.secretPixelUnlocked = false;
     state.aidenDevMode = false;
     state.skinsVisible = true;
-    state.secretSkinMode = AARINI_SECRET_SKINS.includes(skinId) ? "aarini" : "";
+    state.secretSkinMode = AARINI_SECRET_SKINS.includes(skinId) ? "aarini" : (OG_SECRET_SKINS.includes(skinId) ? "og" : "");
     state.unlockedSkins = Array.from(new Set([...(state.unlockedSkins || DEFAULT_UNLOCKED_SKINS), skinId]));
     state.selectedSkin = skinId;
     saveState();
@@ -2009,6 +2021,11 @@
     if (isHackerCode(value)) {
       if (status) status.textContent = "Hacker skin unlocked.";
       unlockSingleSecretSkin("hacker", "Secret hacker skin unlocked.");
+      return;
+    }
+    if (isOgCode(value)) {
+      if (status) status.textContent = "OG mode unlocked.";
+      unlockSingleSecretSkin("og-classic", "OG mode unlocked: old-school EPStudy is back.");
       return;
     }
     if (isSecretPixelCode(value)) {
@@ -3417,9 +3434,9 @@
           <div class="today-plan-meta">${task.estimatedMinutes}m · ${normalizeDueDate(task.dueDate)}${course ? ` · ${escapeHtml(course.code || course.name)}` : ""}</div>
         </div>
         <div class="today-plan-actions">
-          <button class="button success" type="button" data-plan-done="${escapeHtml(task.id)}">Check</button>
-          <button class="button" type="button" data-plan-info="${escapeHtml(task.id)}">More Info</button>
-          <button class="button" type="button" data-plan-load="${escapeHtml(task.id)}">Load</button>
+          <button class="button success" type="button" data-plan-done="${escapeHtml(task.id)}">Mark Complete</button>
+          <button class="button" type="button" data-plan-info="${escapeHtml(task.id)}">View Canvas</button>
+          <button class="button" type="button" data-plan-load="${escapeHtml(task.id)}">Focus</button>
         </div>
       </div>`;
     }).join("");
