@@ -18,7 +18,7 @@ Keep EPStudy open, then open signed-in tabs for:
 - TeamSnap schedule pages on `go.teamsnap.com` for each team you want tracked
 - Membean
 
-The extension syncs automatically every 10 minutes. You can also use Settings -> Extension Sync in EPStudy to request a sync, check source health, send website tasks into extension storage, or open Canvas, TeamSnap, and Membean from EPStudy. In V5, the React launcher reports whether V2, V3, V4, or Simple is active so extension health and exported website tasks follow the selected version.
+The extension syncs automatically every 10 minutes. You can also use Settings -> Extension Sync in EPStudy to request a sync, check source health, send website tasks into extension storage, or open Canvas, TeamSnap, and Membean from EPStudy. In V6, the site defaults to Normal mode and reports whether Normal or Simple is active so extension health and exported website tasks follow the selected mode.
 
 ## What It Sends
 

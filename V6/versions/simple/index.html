@@ -207,7 +207,7 @@
 
 <script>
   const STORAGE_KEY = "epstudy_secure_pro_v6";
-  const VERSION_STORAGE_KEY = "epstudy_v5_selected_version";
+  const VERSION_STORAGE_KEY = "epstudy_v6_selected_version";
   const EPSTUDY_APP_VERSION = "simple";
   const VERSION_PATHS = { normal: "../v3/index.html", simple: "index.html" };
   const DEFAULT_COURSES = [
@@ -238,7 +238,7 @@
   }
 
   function sharedAssetUrl(name) {
-    const marker = "/V5/";
+    const marker = "/V6/";
     const path = window.location.pathname;
     if (window.location.origin !== "null" && path.includes(marker)) {
       const root = path.slice(0, path.indexOf(marker) + marker.length);
