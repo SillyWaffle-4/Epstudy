@@ -2182,10 +2182,12 @@
         position: relative !important;
         z-index: 20 !important;
         outline: 3px solid rgba(255, 255, 255, 0.94) !important;
+        background-image: linear-gradient(rgba(239, 68, 68, calc(0.12 + var(--epstudy-heat-power, 0) * 0.62)), rgba(239, 68, 68, calc(0.12 + var(--epstudy-heat-power, 0) * 0.62))) !important;
         box-shadow:
-          0 0 0 5px rgba(37, 99, 235, calc(0.16 + var(--epstudy-heat-power, 0) * 0.22)) !important,
+          inset 0 0 0 9999px rgba(239, 68, 68, calc(0.08 + var(--epstudy-heat-power, 0) * 0.5)),
+          0 0 0 5px rgba(37, 99, 235, calc(0.16 + var(--epstudy-heat-power, 0) * 0.22)),
           0 0 calc(18px + var(--epstudy-heat-power, 0) * 44px) rgba(239, 68, 68, calc(0.22 + var(--epstudy-heat-power, 0) * 0.62)) !important;
-        filter: brightness(calc(1 + var(--epstudy-heat-power, 0) * 0.45)) saturate(calc(1 + var(--epstudy-heat-power, 0) * 0.8)) !important;
+        filter: saturate(calc(1 + var(--epstudy-heat-power, 0) * 0.95)) !important;
       }
       .epstudy-analytics-heat::after {
         content: attr(data-analytics-heat-label);
