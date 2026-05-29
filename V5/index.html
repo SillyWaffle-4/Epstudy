@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EPStudy V5</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy-primary: #002b5c;
+    --gold: #ffc72c;
+    --bg-gray: #f4f7f9;
+    --border: #dbe3ec;
+    --text-dark: #0f172a;
+    --text-main: #475569;
+    --muted: #64748b;
+    --panel: #ffffff;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --shadow-md: 0 20px 48px -34px rgb(15 23 42 / 0.45);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background: linear-gradient(145deg, #eef4f8, #ffffff 54%, #f8f3df);
+    color: var(--text-main);
+    font-family: Inter, system-ui, sans-serif;
+    line-height: 1.5;
+  }
+
+  #root {
+    width: min(820px, 100%);
+  }
+
+  main {
+    display: grid;
+    gap: 1rem;
+  }
+
+  .topline {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .logo {
+    width: 54px;
+    height: 54px;
+    border-radius: var(--radius-md);
+    object-fit: contain;
+    background: var(--navy-primary);
+    box-shadow: var(--shadow-md);
+  }
+
+  h1 {
+    margin: 0;
+    color: var(--text-dark);
+    font-size: clamp(2rem, 5vw, 3.4rem);
+    line-height: 1;
+    letter-spacing: 0;
+  }
+
+  .eyebrow {
+    margin: 0 0 0.35rem;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  .panel {
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--panel) 92%, var(--bg-gray));
+    box-shadow: var(--shadow-md);
+  }
+
+  .version-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.85rem;
+  }
+
+  .version-card {
+    min-height: 144px;
+    padding: 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--panel);
+    color: var(--text-main);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  }
+
+  .version-card:hover,
+  .version-card.active {
+    border-color: var(--navy-primary);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+
+  .version-card strong {
+    display: block;
+    color: var(--text-dark);
+    font-size: 1.2rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .version-card span {
+    display: block;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  .actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0.7rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--panel);
+    color: var(--text-dark);
+    font-weight: 800;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .button.primary {
+    background: var(--navy-primary);
+    border-color: var(--navy-primary);
+    color: #ffffff;
+  }
+
+  .note {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.88rem;
+  }
+
+  @media (max-width: 680px) {
+    body { place-items: start; }
+    .version-grid { grid-template-columns: 1fr; }
+    .actions .button { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+  try { localStorage.setItem("epstudy_v5_selected_version", "normal"); } catch {}
+  window.location.replace(`versions/v3/index.html${window.location.search || ""}${window.location.hash || ""}`);
+</script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script>
+  const VERSION_STORAGE_KEY = "epstudy_v5_selected_version";
+  const VERSION_PATHS = { normal: "versions/v3/index.html", simple: "versions/simple/index.html" };
+  const VERSION_OPTIONS = [
+    {
+      id: "normal",
+      label: "Normal",
+      description: "Best clean dashboard, more schooltime enforcements, CARD VIEW PATCHED!!!"
+    },
+    {
+      id: "simple",
+      label: "Simple",
+      description: "A quiet workspace with only tasks, calendar, and focus timer."
+    }
+  ];
+
+  function normalizeVersion(version) {
+    const value = String(version || "").toLowerCase();
+    if (value === "simple") return "simple";
+    if (["normal", "v2", "v3", "v4"].includes(value)) return "normal";
+    return "normal";
+  }
+
+  function getStoredVersion() {
+    return normalizeVersion(localStorage.getItem(VERSION_STORAGE_KEY));
+  }
+
+  function VersionCard({ option, selectedVersion, onSelect }) {
+    return React.createElement(
+      "button",
+      {
+        className: `version-card${option.id === selectedVersion ? " active" : ""}`,
+        type: "button",
+        "data-version": option.id,
+        onClick: () => onSelect(option.id)
+      },
+      React.createElement("strong", null, option.label),
+      React.createElement("span", null, option.description)
+    );
+  }
+
+  function App() {
+    const [selectedVersion, setSelectedVersion] = React.useState(getStoredVersion);
+
+    React.useEffect(() => {
+      const version = normalizeVersion(selectedVersion);
+      if (version !== selectedVersion) setSelectedVersion(version);
+      localStorage.setItem(VERSION_STORAGE_KEY, version);
+      window.postMessage({
+        type: "EPSTUDY_VERSION_SELECTED",
+        version,
+        source: "v5-react-launcher"
+      }, "*");
+    }, [selectedVersion]);
+
+    return React.createElement(
+      "main",
+      null,
+      React.createElement(
+        "div",
+        { className: "topline" },
+        React.createElement("img", { className: "logo", src: "shared/logo.png", alt: "EPStudy logo" }),
+        React.createElement(
+          "div",
+          null,
+          React.createElement("p", { className: "eyebrow" }, "EPStudy V5"),
+          React.createElement("h1", null, "Choose Your Workspace")
+        )
+      ),
+      React.createElement(
+        "section",
+        { className: "panel", "aria-label": "Version chooser" },
+        React.createElement(
+          "div",
+          { className: "version-grid" },
+          VERSION_OPTIONS.map((option) => React.createElement(VersionCard, {
+            key: option.id,
+            option,
+            selectedVersion,
+            onSelect: version => setSelectedVersion(normalizeVersion(version))
+          }))
+        )
+      ),
+      React.createElement(
+        "div",
+        { className: "actions" },
+        React.createElement("a", {
+          id: "openSelected",
+          className: "button primary",
+          href: VERSION_PATHS[normalizeVersion(selectedVersion)]
+        }, "Open Selected Version"),
+        React.createElement("a", { className: "button", href: "extension/README.md" }, "Extension Notes")
+      ),
+      React.createElement(
+        "p",
+        { className: "note" },
+        "Normal and Simple share EPStudy's browser storage, so your tasks and settings stay available when you switch."
+      )
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+</script>
+</body>
+</html>
