@@ -2093,7 +2093,9 @@
       "dashboardLiveSize",
       "guideToggle",
       "guideDivision",
-      "skinChoice"
+      "skinChoice",
+      "skinName",
+      "cosmeticType"
     ].forEach(key => {
       if (dataset[key]) trackedDataset[key] = analyticsClean(dataset[key]);
     });
@@ -2189,6 +2191,12 @@
           0 0 calc(18px + var(--epstudy-heat-power, 0) * 44px) rgba(239, 68, 68, calc(0.22 + var(--epstudy-heat-power, 0) * 0.62)) !important;
         filter: saturate(calc(1 + var(--epstudy-heat-power, 0) * 0.95)) !important;
       }
+      .epstudy-analytics-base {
+        background-color: #ffffff !important;
+        background-image: linear-gradient(#ffffff, #ffffff) !important;
+        color: #0f172a !important;
+        border-color: rgba(148, 163, 184, 0.42) !important;
+      }
       .epstudy-analytics-heat::after {
         content: attr(data-analytics-heat-label);
         position: absolute;
@@ -2228,6 +2236,7 @@
     const max = Math.max(1, ...items.map(item => Number(item?.count || 0)));
     let matched = 0;
     document.querySelectorAll("button,a,[role='button'],summary,input[type='button'],input[type='submit'],input[type='reset']").forEach(el => {
+      el.classList.add("epstudy-analytics-base");
       const label = analyticsPreviewElementLabel(el);
       const aliases = [
         analyticsPreviewCompactKey(label),
@@ -3859,7 +3868,7 @@
       const unlocked = isSkinUnlocked(skin.id);
       const rule = SKIN_UNLOCK_RULES[skin.id];
       const detail = unlocked ? skin.detail : (rule?.label || skin.detail);
-      return `<button class="skin-choice${unlocked ? "" : " locked"}" type="button" data-skin-choice="${skin.id}" ${unlocked ? "" : "disabled aria-disabled=\"true\""} style="--swatch-a:${skin.swatches[0]};--swatch-b:${skin.swatches[1]};">
+      return `<button class="skin-choice${unlocked ? "" : " locked"}" type="button" data-skin-choice="${skin.id}" data-skin-name="${escapeHtml(skin.name)}" data-cosmetic-type="skin" ${unlocked ? "" : "disabled aria-disabled=\"true\""} style="--swatch-a:${skin.swatches[0]};--swatch-b:${skin.swatches[1]};">
       ${escapeHtml(skin.name)}
       <span>${escapeHtml(detail)}</span>
       <small>${escapeHtml(skin.effect ? "animated" : skin.category)}</small>
