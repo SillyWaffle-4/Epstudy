@@ -1173,7 +1173,7 @@
           <h2>Skins & Audio</h2>
           <div class="row">
             <button id="randomSkinBtn" class="button" type="button">Random Skin</button>
-            <button id="defaultSkinBtn" class="button" type="button">Reset Skin</button>
+            <button id="defaultSkinBtn" class="button" type="button" data-analytics-ignore>Reset Skin</button>
           </div>
         </div>
         <div class="skin-library-tools">
@@ -2071,6 +2071,19 @@
     logAnalyticsEvent("mode_changed", { to, source: analyticsClean(source) }, { app: "mode-switch", normalOnly: false });
   }
 
+  function logCosmeticSkinSelected(skinId, source = "skin_grid") {
+    const id = analyticsClean(skinId).toLowerCase();
+    const skin = SKIN_LIBRARY.find(item => item.id === id);
+    logAnalyticsEvent(`click_skin_${analyticsSlug(id || "unknown")}`, {
+      interaction: "click",
+      action: "select_skin",
+      cosmeticType: "skin",
+      skinChoice: id,
+      skinName: skin?.name || id || "Unknown",
+      source: analyticsClean(source)
+    });
+  }
+
   function analyticsElementLabel(el) {
     if (!el) return "";
     const explicit = el.getAttribute("aria-label") || el.getAttribute("title") || el.getAttribute("placeholder") || "";
@@ -2242,7 +2255,13 @@
         analyticsPreviewCompactKey(label),
         analyticsPreviewReadableKey(label),
         analyticsPreviewCompactKey(el.dataset?.page || ""),
-        analyticsPreviewReadableKey(el.dataset?.page || "")
+        analyticsPreviewReadableKey(el.dataset?.page || ""),
+        analyticsPreviewCompactKey(el.dataset?.action || ""),
+        analyticsPreviewReadableKey(el.dataset?.action || ""),
+        analyticsPreviewCompactKey(el.dataset?.calendarView || ""),
+        analyticsPreviewReadableKey(el.dataset?.calendarView || ""),
+        analyticsPreviewCompactKey(el.dataset?.skinChoice || ""),
+        analyticsPreviewReadableKey(el.dataset?.skinName || "")
       ].filter(Boolean);
       const item = aliases.map(alias => lookup.get(alias)).find(Boolean);
       if (!item) return;
@@ -3868,7 +3887,7 @@
       const unlocked = isSkinUnlocked(skin.id);
       const rule = SKIN_UNLOCK_RULES[skin.id];
       const detail = unlocked ? skin.detail : (rule?.label || skin.detail);
-      return `<button class="skin-choice${unlocked ? "" : " locked"}" type="button" data-skin-choice="${skin.id}" data-skin-name="${escapeHtml(skin.name)}" data-cosmetic-type="skin" ${unlocked ? "" : "disabled aria-disabled=\"true\""} style="--swatch-a:${skin.swatches[0]};--swatch-b:${skin.swatches[1]};">
+      return `<button class="skin-choice${unlocked ? "" : " locked"}" type="button" data-skin-choice="${skin.id}" data-skin-name="${escapeHtml(skin.name)}" data-cosmetic-type="skin" data-analytics-ignore ${unlocked ? "" : "disabled aria-disabled=\"true\""} style="--swatch-a:${skin.swatches[0]};--swatch-b:${skin.swatches[1]};">
       ${escapeHtml(skin.name)}
       <span>${escapeHtml(detail)}</span>
       <small>${escapeHtml(skin.effect ? "animated" : skin.category)}</small>
@@ -6431,11 +6450,13 @@
       }
       state.selectedSkin = pick.id;
       state.skinsVisible = true;
+      logCosmeticSkinSelected(pick.id, "random_skin");
       saveState(); renderAll();
     });
     document.getElementById("defaultSkinBtn")?.addEventListener("click", () => {
       state.selectedSkin = "default";
       state.skinsVisible = true;
+      logCosmeticSkinSelected("default", "reset_skin");
       saveState(); renderAll();
     });
     document.getElementById("skinUploadInput")?.addEventListener("change", e => {
@@ -6460,6 +6481,7 @@
         state.customSkinDataUrl = dataUrl;
         state.selectedSkin = "upload";
         state.skinsVisible = true;
+        logCosmeticSkinSelected("upload", "upload_skin");
         saveState(); renderAll();
       };
       reader.readAsDataURL(file);
@@ -6480,6 +6502,7 @@
       }
       state.selectedSkin = SKIN_IDS.includes(skinId) ? skinId : "default";
       state.skinsVisible = true;
+      logCosmeticSkinSelected(state.selectedSkin, "skin_grid");
       saveState(); renderAll();
     });
 
