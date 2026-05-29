@@ -10,6 +10,31 @@
   };
 
   const SESSION_KEY = "epstudy_analytics_session_v1";
+  const OPT_OUT_KEY = "epstudy_analytics_opt_out";
+
+  function urlDisablesTracking() {
+    try {
+      const params = new URLSearchParams(location.search || "");
+      const value = String(params.get("notrack") || params.get("no_track") || "").toLowerCase();
+      return value === "1" || value === "true" || value === "yes" || value === "on";
+    } catch {
+      return false;
+    }
+  }
+
+  function setOptOut(value) {
+    try {
+      if (value) localStorage.setItem(OPT_OUT_KEY, "true");
+      else localStorage.removeItem(OPT_OUT_KEY);
+    } catch {}
+  }
+
+  function isOptedOut() {
+    try { return localStorage.getItem(OPT_OUT_KEY) === "true"; }
+    catch { return false; }
+  }
+
+  if (urlDisablesTracking()) setOptOut(true);
 
   function cleanText(value, fallback = "") {
     return String(value || fallback)
@@ -40,6 +65,7 @@
   }
 
   function log(eventName, options = {}) {
+    if (isOptedOut()) return Promise.resolve({ skipped: true, reason: "opted_out" });
     if (!isConfigured()) return Promise.resolve({ skipped: true, reason: "not_configured" });
     const metadata = options.metadata && typeof options.metadata === "object" ? options.metadata : {};
     const payload = {
@@ -64,5 +90,5 @@
   }
 
   window.EPSTUDY_SUPABASE_LOGGING = CONFIG;
-  window.EPSTUDY_ANALYTICS = { log, isConfigured };
+  window.EPSTUDY_ANALYTICS = { log, isConfigured, isOptedOut, setOptOut };
 })();
