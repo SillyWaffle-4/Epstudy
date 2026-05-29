@@ -2150,6 +2150,111 @@
     }, true);
   }
 
+  function analyticsPreviewEnabled() {
+    try { return new URLSearchParams(window.location.search).get("analyticsPreview") === "1"; }
+    catch { return false; }
+  }
+
+  function analyticsPreviewCompactKey(value) {
+    return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  }
+
+  function analyticsPreviewReadableKey(value) {
+    return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  }
+
+  function analyticsPreviewElementLabel(el) {
+    const explicit = el.getAttribute("aria-label") || el.getAttribute("title") || el.getAttribute("placeholder") || "";
+    if (explicit) return analyticsClean(explicit);
+    if (el.matches("input")) return analyticsClean(el.value || el.id || el.name || el.type || "input");
+    return analyticsClean(el.innerText || el.textContent || el.id || el.name || el.tagName);
+  }
+
+  function ensureAnalyticsPreviewHeatStyle() {
+    let style = document.getElementById("epstudyAnalyticsHeatStyle");
+    if (!style) {
+      style = document.createElement("style");
+      style.id = "epstudyAnalyticsHeatStyle";
+      document.head.appendChild(style);
+    }
+    style.textContent = `
+      .epstudy-analytics-heat {
+        position: relative !important;
+        z-index: 20 !important;
+        outline: 3px solid rgba(255, 255, 255, 0.94) !important;
+        box-shadow:
+          0 0 0 5px rgba(37, 99, 235, calc(0.16 + var(--epstudy-heat-power, 0) * 0.22)) !important,
+          0 0 calc(18px + var(--epstudy-heat-power, 0) * 44px) rgba(239, 68, 68, calc(0.22 + var(--epstudy-heat-power, 0) * 0.62)) !important;
+        filter: brightness(calc(1 + var(--epstudy-heat-power, 0) * 0.45)) saturate(calc(1 + var(--epstudy-heat-power, 0) * 0.8)) !important;
+      }
+      .epstudy-analytics-heat::after {
+        content: attr(data-analytics-heat-label);
+        position: absolute;
+        left: 50%;
+        top: -10px;
+        transform: translate(-50%, -100%);
+        z-index: 9999;
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: rgba(15, 23, 42, 0.92);
+        color: #fff;
+        font: 800 11px/1.1 ui-sans-serif, system-ui, sans-serif;
+        white-space: nowrap;
+        pointer-events: none;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.2);
+      }
+    `;
+  }
+
+  function applyAnalyticsPreviewHeat(items = []) {
+    ensureAnalyticsPreviewHeatStyle();
+    document.querySelectorAll(".epstudy-analytics-heat").forEach(el => {
+      el.classList.remove("epstudy-analytics-heat");
+      el.style.removeProperty("--epstudy-heat-power");
+      el.removeAttribute("data-analytics-heat-label");
+    });
+    const lookup = new Map();
+    items.forEach(item => {
+      const name = String(item?.name || "");
+      const count = Number(item?.count || 0);
+      if (!name || !count) return;
+      const record = { name, count };
+      [analyticsPreviewCompactKey(name), analyticsPreviewReadableKey(name)].forEach(key => {
+        if (key && !lookup.has(key)) lookup.set(key, record);
+      });
+    });
+    const max = Math.max(1, ...items.map(item => Number(item?.count || 0)));
+    let matched = 0;
+    document.querySelectorAll("button,a,[role='button'],summary,input[type='button'],input[type='submit'],input[type='reset']").forEach(el => {
+      const label = analyticsPreviewElementLabel(el);
+      const aliases = [
+        analyticsPreviewCompactKey(label),
+        analyticsPreviewReadableKey(label),
+        analyticsPreviewCompactKey(el.dataset?.page || ""),
+        analyticsPreviewReadableKey(el.dataset?.page || "")
+      ].filter(Boolean);
+      const item = aliases.map(alias => lookup.get(alias)).find(Boolean);
+      if (!item) return;
+      const power = Math.max(0.12, item.count / max);
+      el.classList.add("epstudy-analytics-heat");
+      el.style.setProperty("--epstudy-heat-power", String(power.toFixed(3)));
+      el.setAttribute("data-analytics-heat-label", `${item.count.toLocaleString()} clicks`);
+      matched += 1;
+    });
+    return matched;
+  }
+
+  function installAnalyticsPreviewHeat() {
+    if (!analyticsPreviewEnabled()) return;
+    window.addEventListener("message", event => {
+      if (event.data?.type !== "EPSTUDY_ANALYTICS_HEAT") return;
+      const matched = applyAnalyticsPreviewHeat(Array.isArray(event.data.items) ? event.data.items : []);
+      event.source?.postMessage({ type: "EPSTUDY_ANALYTICS_HEAT_RESULT", matched }, "*");
+    });
+  }
+
+  installAnalyticsPreviewHeat();
+
   function unlockSecretPixelMode() {
     state.secretPixelUnlocked = true;
     state.aidenDevMode = true;
