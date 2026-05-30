@@ -273,7 +273,7 @@ async function scrapeCanvasCourses() {
     .filter(Boolean)
   ];
 
-  return dedupeCourses([...courses, ...visibleCourses]);
+  return enrichCanvasCoursePeriodsFromAnalytics(dedupeCourses([...courses, ...visibleCourses]));
 }
 
 function normalizeCanvasCourseRecord(course, idOverride = "") {
@@ -301,6 +301,47 @@ function canvasCoursesFromEnv() {
     ...(Array.isArray(env.courses) ? env.courses : [])
   ];
   return rows.map(course => normalizeCanvasCourseRecord(course)).filter(Boolean);
+}
+
+async function enrichCanvasCoursePeriodsFromAnalytics(courses) {
+  const rows = Array.isArray(courses) ? courses : [];
+  const missingPeriodRows = rows
+    .filter(course => /^\d+$/.test(String(course?.id || "")) && !normalizeCanvasCoursePeriod(course?.period))
+    .slice(0, 40);
+  if (!missingPeriodRows.length) return rows;
+
+  const periodPairs = await Promise.all(missingPeriodRows.map(async course => {
+    const period = await fetchCanvasCourseAnalyticsPeriod(course.id);
+    return [course.id, period];
+  }));
+  const periodsById = new Map(periodPairs.filter(([, period]) => period));
+  if (!periodsById.size) return rows;
+  return rows.map(course => {
+    const period = periodsById.get(String(course?.id || ""));
+    return period ? { ...course, period } : course;
+  });
+}
+
+async function fetchCanvasCourseAnalyticsPeriod(courseIdRaw) {
+  const courseId = String(courseIdRaw || "").trim();
+  if (!/^\d+$/.test(courseId)) return "";
+  try {
+    const response = await fetch(`${window.location.origin}/courses/${courseId}/external_tools/1069735`, {
+      credentials: "include",
+      headers: { Accept: "text/html,application/xhtml+xml" }
+    });
+    if (!response.ok) return "";
+    const html = await response.text();
+    return extractCanvasCourseAnalyticsPeriod(html);
+  } catch {
+    return "";
+  }
+}
+
+function extractCanvasCourseAnalyticsPeriod(html) {
+  const doc = new DOMParser().parseFromString(String(html || ""), "text/html");
+  const mainText = text(doc.querySelector("#content, main, [role='main']")) || text(doc.body);
+  return normalizeCanvasCoursePeriod(mainText.match(/\bPeriod\s+[A-H]\b/i)?.[0] || "");
 }
 
 function canvasCourseLabelFromLink(link) {
