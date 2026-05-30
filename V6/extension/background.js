@@ -611,19 +611,26 @@ function normalizeDomain(value) {
 }
 
 async function syncAllSources(config = {}) {
-  let tabs = await chrome.tabs.query({});
-  tabs = await ensureSourceTabsOpenForSync(tabs, config);
-  await rememberOpenTeamSnapTabs(tabs);
-  const hadCanvasTab = tabs.some((tab) => tab.url && sourceFromUrl(tab.url, config) === "canvas");
-  await scrapeOpenSourceTabs(tabs, config, "canvas");
-  await scrapeOpenSourceTabs(tabs, config, "teamsnap");
-  await scrapeOpenSourceTabs(tabs, config, "membean");
-  await scrapeRememberedTeamSnapLinks(tabs, config);
-  await scrapeMembeanProgress(tabs, config);
-  if (!hadCanvasTab) await markCanvasWaitingForReadablePage("No Canvas tab is open. Keeping the last saved Canvas data.");
-  const cache = await getCache();
-  await broadcastToEpstudy(cache);
-  return cache;
+  const initialTabs = await chrome.tabs.query({});
+  const openedTabIds = new Set();
+  try {
+    const prepared = await ensureSourceTabsOpenForSync(initialTabs, config);
+    let tabs = prepared.tabs;
+    const hadCanvasTab = tabs.some((tab) => tab.url && sourceFromUrl(tab.url, config) === "canvas");
+    prepared.openedTabIds.forEach(id => openedTabIds.add(id));
+    await rememberOpenTeamSnapTabs(tabs);
+    await scrapeOpenSourceTabs(tabs, config, "canvas");
+    await scrapeOpenSourceTabs(tabs, config, "teamsnap");
+    await scrapeOpenSourceTabs(tabs, config, "membean");
+    await scrapeRememberedTeamSnapLinks(tabs, config);
+    await scrapeMembeanProgress(tabs, config);
+    if (!hadCanvasTab) await markCanvasWaitingForReadablePage("No Canvas tab is open. Keeping the last saved Canvas data.");
+    const cache = await getCache();
+    await broadcastToEpstudy(cache);
+    return cache;
+  } finally {
+    await closeCreatedSyncTabs(openedTabIds);
+  }
 }
 
 async function ensureSourceTabsOpenForSync(tabs, config = {}) {
@@ -640,7 +647,20 @@ async function ensureSourceTabsOpenForSync(tabs, config = {}) {
     }
   }
   await Promise.all(opened.map(tab => waitForTabLoad(tab.id, 15000)));
-  return chrome.tabs.query({});
+  return {
+    tabs: await chrome.tabs.query({}),
+    openedTabIds: opened.map(tab => tab.id).filter(id => Number.isInteger(id))
+  };
+}
+
+async function closeCreatedSyncTabs(openedTabIds) {
+  const ids = Array.from(openedTabIds || []).filter(id => Number.isInteger(id));
+  if (!ids.length) return;
+  await Promise.allSettled(ids.map(async id => {
+    const tab = await chrome.tabs.get(id).catch(() => null);
+    if (!tab) return;
+    await chrome.tabs.remove(id).catch(() => {});
+  }));
 }
 
 async function scrapeOpenSourceTabs(tabs, config, source) {
