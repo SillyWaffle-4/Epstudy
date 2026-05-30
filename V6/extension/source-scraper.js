@@ -245,6 +245,8 @@ async function fetchCanvasApiPages(initialUrl) {
 
 async function scrapeCanvasCourses() {
   const courses = [];
+  const currentFavoriteCourses = await fetchCanvasCurrentFavoriteCourses();
+  const currentFavoriteIds = new Set(currentFavoriteCourses.map(course => String(course.id || "")));
   try {
     const rows = await fetchCanvasApiPages(`${window.location.origin}/api/v1/courses?enrollment_state=active&per_page=500`);
     for (const row of rows) {
@@ -273,7 +275,11 @@ async function scrapeCanvasCourses() {
     .filter(Boolean)
   ];
 
-  return enrichCanvasCoursePeriodsFromAnalytics(dedupeCourses([...courses, ...visibleCourses]));
+  const deduped = dedupeCourses([...currentFavoriteCourses, ...courses, ...visibleCourses]);
+  const filtered = currentFavoriteIds.size
+    ? deduped.filter(course => currentFavoriteIds.has(String(course.id || "")))
+    : deduped;
+  return enrichCanvasCoursePeriodsFromAnalytics(filtered);
 }
 
 function normalizeCanvasCourseRecord(course, idOverride = "") {
@@ -301,6 +307,92 @@ function canvasCoursesFromEnv() {
     ...(Array.isArray(env.courses) ? env.courses : [])
   ];
   return rows.map(course => normalizeCanvasCourseRecord(course)).filter(Boolean);
+}
+
+async function fetchCanvasCurrentFavoriteCourses() {
+  try {
+    const response = await fetch(`${window.location.origin}/courses`, {
+      credentials: "include",
+      headers: { Accept: "text/html,application/xhtml+xml" }
+    });
+    if (!response.ok) return [];
+    const html = await response.text();
+    return scrapeCanvasCurrentFavoriteCoursesFromHtml(html);
+  } catch {
+    return [];
+  }
+}
+
+function scrapeCanvasCurrentFavoriteCoursesFromHtml(html) {
+  const doc = new DOMParser().parseFromString(String(html || ""), "text/html");
+  const rows = [];
+  let enrollmentSection = "current";
+  for (const node of Array.from(doc.body?.querySelectorAll("h1, h2, h3, table") || [])) {
+    if (/past enrollments/i.test(text(node))) {
+      enrollmentSection = "past";
+      continue;
+    }
+    if (/future enrollments/i.test(text(node))) {
+      enrollmentSection = "future";
+      continue;
+    }
+    if (node.tagName !== "TABLE" || enrollmentSection !== "current") continue;
+    rows.push(...scrapeCanvasCurrentFavoriteCoursesFromTable(node));
+  }
+  return dedupeCourses(rows);
+}
+
+function scrapeCanvasCurrentFavoriteCoursesFromTable(table) {
+  return Array.from(table.querySelectorAll("tbody tr, tr")).map(row => {
+    const link = Array.from(row.querySelectorAll("a[href*='/courses/']"))
+      .find(node => canvasCourseIdFromCourseHomeHref(node.getAttribute?.("href") || ""));
+    const id = canvasCourseIdFromCourseHomeHref(link?.getAttribute?.("href") || "");
+    if (!id) return null;
+    const cells = Array.from(row.querySelectorAll("td, th"));
+    if (!isCurrentFavoriteCourseRow(row, cells)) return null;
+    const label = canvasCourseLabelFromLink(link);
+    const name = cleanCanvasCourseName(label.name || text(link));
+    if (!isLikelyCanvasCourseName(name) || hasBlockedCanvasCourseKeyword(name)) return null;
+    const term = tableCellTextByHeader(row, "term") || text(cells[3]);
+    return {
+      id,
+      name,
+      course_code: cleanCanvasCourseName(label.code),
+      period: normalizeCanvasCoursePeriod(label.period || text(row)),
+      term,
+      source: "canvas"
+    };
+  }).filter(Boolean);
+}
+
+function isCurrentFavoriteCourseRow(row, cells) {
+  const rowText = text(row);
+  if (!/\bstudent\b/i.test(rowText)) return false;
+  if (/\bno\b/i.test(tableCellTextByHeader(row, "published") || text(cells[cells.length - 1] || ""))) return false;
+  if (/past enrollments|future enrollments/i.test(rowText)) return false;
+  return isFavoritedCanvasCourseRow(row, cells[0]);
+}
+
+function tableCellTextByHeader(row, headerName) {
+  const wanted = String(headerName || "").toLowerCase();
+  const table = row.closest?.("table");
+  const headers = Array.from(table?.querySelectorAll("thead th, tr:first-child th") || []).map(th => text(th).toLowerCase());
+  const index = headers.findIndex(header => header.includes(wanted));
+  if (index < 0) return "";
+  return text(Array.from(row.querySelectorAll("td, th"))[index]);
+}
+
+function isFavoritedCanvasCourseRow(row, favoriteCell) {
+  const scope = favoriteCell || row;
+  const labels = Array.from(scope.querySelectorAll("*"))
+    .map(node => `${node.getAttribute?.("title") || ""} ${node.getAttribute?.("aria-label") || ""} ${node.getAttribute?.("data-tooltip") || ""} ${node.className || ""}`)
+    .join(" ");
+  const favoriteText = `${text(scope)} ${labels}`;
+  if (/unfavorite|remove.*favorite|currently.*favorite|favorite.*true|starred/i.test(favoriteText)) return true;
+  if (/add.*favorite|mark.*favorite|not.*favorite|favorite.*false/i.test(favoriteText)) return false;
+  const filledStar = scope.querySelector?.(".icon-star:not(.icon-star-light), .icon-star-full, [class*='starred']");
+  if (filledStar) return true;
+  return /★|★|orange/i.test(favoriteText);
 }
 
 async function enrichCanvasCoursePeriodsFromAnalytics(courses) {
