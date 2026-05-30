@@ -8,6 +8,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }).catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
+  if (message?.type === "EPSTUDY_READ_CANVAS_COURSES_TRAY") {
+    readCanvasCoursesTray().then((payload) => {
+      sendResponse({ ok: true, payload });
+    }).catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
+  }
   if (message?.type !== "EPSTUDY_SCRAPE_NOW") return false;
   scrapeAndSendCurrentPage().then((payload) => {
     sendResponse({ ok: true, payload });
@@ -100,6 +106,86 @@ async function forceCanvasDashboardView(view) {
   }
 
   return { changed: false, view: detectCanvasDashboardView(), reason: `${targetView}-option-not-found` };
+}
+
+async function readCanvasCoursesTray() {
+  if (!SOURCE_HOST.endsWith("instructure.com")) return { source: "canvas", tasks: [], courses: [], canvasCoursesTray: false };
+
+  let courses = scrapeCanvasCoursesTrayCourses();
+  let opened = false;
+  if (courses.length === 0) {
+    const coursesButton = findCanvasCoursesButton();
+    if (coursesButton) {
+      clickCanvasElement(coursesButton);
+      opened = true;
+      await sleep(1400);
+      courses = scrapeCanvasCoursesTrayCourses();
+    }
+  }
+
+  if (opened) closeCanvasCoursesTray();
+  return {
+    source: "canvas",
+    tasks: [],
+    courses: dedupeCourses(courses),
+    canvasCoursesTray: true,
+    canvasDashboardView: detectCanvasDashboardView()
+  };
+}
+
+function findCanvasCoursesButton() {
+  const explicit = document.querySelector("#global_nav_courses_link, a[href='/courses'], a[href$='/courses']");
+  if (explicit && isVisibleElement(explicit)) return explicit;
+  return Array.from(document.querySelectorAll("a, button, [role='button']"))
+    .find(node => isVisibleElement(node) && /^courses$/i.test(text(node))) || null;
+}
+
+function canvasCoursesTrayRoots() {
+  const roots = Array.from(document.querySelectorAll([
+    "#nav-tray-portal",
+    "#global_nav_tray_container",
+    "[aria-label='Courses']",
+    "[class*='Tray']",
+    "[class*='tray']"
+  ].join(","))).filter(root => {
+    const rootText = text(root);
+    return root.querySelector?.("a[href*='/courses/']") && /\b(All Courses|Period\s+[A-H]|Term:|Welcome to your courses)\b/i.test(rootText);
+  });
+  return roots.length ? roots : [];
+}
+
+function scrapeCanvasCoursesTrayCourses() {
+  const roots = canvasCoursesTrayRoots();
+  const links = roots.flatMap(root => Array.from(root.querySelectorAll("a[href*='/courses/']")));
+  return links.map(link => {
+    const courseId = canvasCourseIdFromCourseHomeHref(link.getAttribute?.("href") || "");
+    if (!courseId) return null;
+    const courseLabel = canvasCourseLabelFromLink(link);
+    const name = cleanCanvasCourseName(courseLabel.name);
+    const code = cleanCanvasCourseName(courseLabel.code);
+    if (!isLikelyCanvasCourseName(name) || hasBlockedCanvasCourseKeyword(`${name} ${code}`)) return null;
+    return {
+      id: courseId,
+      name,
+      course_code: code,
+      period: normalizeCanvasCoursePeriod(courseLabel.period || text(link.closest?.("li, [role='listitem'], [class*='course']"))),
+      source: "canvas"
+    };
+  }).filter(Boolean);
+}
+
+function closeCanvasCoursesTray() {
+  const roots = canvasCoursesTrayRoots();
+  const closeButton = roots.flatMap(root => Array.from(root.querySelectorAll("button, a, [role='button']")))
+    .find(node => {
+      const label = `${text(node)} ${node.getAttribute?.("aria-label") || ""} ${node.getAttribute?.("title") || ""}`.trim();
+      return isVisibleElement(node) && /^(close|x|×)$/i.test(label);
+    });
+  if (closeButton) {
+    clickCanvasElement(closeButton);
+    return;
+  }
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true }));
 }
 
 function findCanvasDashboardViewOption(label) {

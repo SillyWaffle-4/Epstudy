@@ -532,16 +532,35 @@ function normalizeCanvasCourses(courses) {
       const rawId = String(course?.id || course?.course_id || "").trim();
       const name = String(course?.name || course?.course_code || "").replace(/\s+/g, " ").trim();
       const code = String(course?.course_code || course?.code || "").replace(/\s+/g, " ").trim();
+      const period = normalizeCanvasCoursePeriod(course?.period || course?.course_period || course?.section || "");
       if (!rawId || !name) return null;
       if (!/^\d+$/.test(rawId)) return null;
       if (!isLikelyCanvasCourseName(name, code)) return null;
       const key = rawId.toLowerCase();
       if (seen.has(key)) return null;
       seen.add(key);
-      return { id: rawId, name, course_code: code, source: "canvas" };
+      return { id: rawId, name, course_code: code, period, source: "canvas" };
     })
     .filter(Boolean)
     .slice(0, 500);
+}
+
+function normalizeCanvasCoursePeriod(value) {
+  const match = String(value || "").toUpperCase().match(/\b(?:PERIOD\s*)?([A-H])\b/);
+  return match ? match[1] : "";
+}
+
+function mergeCanvasCourseLists(primaryCourses, extraCourses) {
+  const byId = new Map();
+  for (const course of normalizeCanvasCourses([...(primaryCourses || []), ...(extraCourses || [])])) {
+    const current = byId.get(course.id);
+    byId.set(course.id, {
+      ...current,
+      ...course,
+      period: course.period || current?.period || ""
+    });
+  }
+  return Array.from(byId.values());
 }
 
 function isLikelyCanvasCourseName(name, code = "") {
@@ -829,11 +848,29 @@ async function askTabToScrape(tab, config) {
   }
   try {
     const response = await chrome.tabs.sendMessage(tab.id, { type: "EPSTUDY_SCRAPE_NOW", config });
-    if (response?.payload?.source) await mergeSourcePayload(response.payload.source, response.payload, { tab, scrapeConfig: config });
+    const payload = await enrichPayloadWithCanvasCoursesTray(tab, response?.payload, config);
+    if (payload?.source) await mergeSourcePayload(payload.source, payload, { tab, scrapeConfig: config });
   } catch {
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["source-scraper.js"] });
     const response = await chrome.tabs.sendMessage(tab.id, { type: "EPSTUDY_SCRAPE_NOW", config });
-    if (response?.payload?.source) await mergeSourcePayload(response.payload.source, response.payload, { tab, scrapeConfig: config });
+    const payload = await enrichPayloadWithCanvasCoursesTray(tab, response?.payload, config);
+    if (payload?.source) await mergeSourcePayload(payload.source, payload, { tab, scrapeConfig: config });
+  }
+}
+
+async function enrichPayloadWithCanvasCoursesTray(tab, payload, config = {}) {
+  if (!payload || sourceFromUrl(tab?.url || "", config) !== "canvas" || config.scheduleEnabled === false) return payload;
+  try {
+    const trayResponse = await chrome.tabs.sendMessage(tab.id, { type: "EPSTUDY_READ_CANVAS_COURSES_TRAY", config });
+    const trayCourses = trayResponse?.payload?.courses || [];
+    if (!Array.isArray(trayCourses) || trayCourses.length === 0) return payload;
+    return {
+      ...payload,
+      courses: mergeCanvasCourseLists(payload.courses || [], trayCourses),
+      canvasCoursesTray: true
+    };
+  } catch {
+    return payload;
   }
 }
 

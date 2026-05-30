@@ -1539,6 +1539,7 @@
   const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const LONG_DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const EPS_PERIODS = ["A", "B", "C", "D", "E", "F", "G", "H"];
+  const COURSE_PERIOD_STICKY_MS = 90 * 24 * 60 * 60 * 1000;
 
   const DEFAULT_COURSES = [
     { id: "course-personal", name: "Personal", code: "PERS", color: "#8b5cf6" },
@@ -1812,6 +1813,26 @@
     return match ? match[1] : "";
   }
 
+  function normalizeCoursePeriodEditedAt(value) {
+    const time = value ? new Date(value).getTime() : NaN;
+    return Number.isFinite(time) ? new Date(time).toISOString() : null;
+  }
+
+  function coursePeriodEditIsSticky(course) {
+    const editedAt = normalizeCoursePeriodEditedAt(course?.periodUserEditedAt);
+    if (!editedAt) return false;
+    return Date.now() - new Date(editedAt).getTime() < COURSE_PERIOD_STICKY_MS;
+  }
+
+  function applySyncedCoursePeriod(course, incomingPeriod) {
+    const period = normalizeCoursePeriod(incomingPeriod);
+    if (!course || !period || coursePeriodEditIsSticky(course)) return false;
+    if (course.period === period) return false;
+    course.period = period;
+    course.periodSource = "canvas";
+    return true;
+  }
+
   function coursePeriodSelectOptions(selected = "") {
     const current = normalizeCoursePeriod(selected);
     return `<option value="">No period</option>${EPS_PERIODS.map(period => `<option value="${period}" ${period === current ? "selected" : ""}>Period ${period}</option>`).join("")}`;
@@ -1990,8 +2011,12 @@
         name: c?.name ? String(c.name) : `Course ${i + 1}`,
         code: c?.code ? String(c.code) : "",
         period: normalizeCoursePeriod(c?.period || c?.course_period || c?.section || ""),
+        periodSource: c?.periodSource ? String(c.periodSource) : "",
+        periodUserEditedAt: normalizeCoursePeriodEditedAt(c?.periodUserEditedAt),
         color: /^#([0-9a-f]{3}|[0-9a-f]{6})$|^hsl\(|^rgb\(/i.test(c?.color || "") ? String(c.color) : "#2563eb",
         userColor: Boolean(c?.userColor),
+        source: c?.source ? String(c.source) : "",
+        isStudyHall: Boolean(c?.isStudyHall),
         hidden: Boolean(c?.hidden) || String(c?.id || "") === UNFILTERED_COURSE_ID
       })).filter(c => c.id !== "course-other" && String(c.name || "").toLowerCase() !== "other" && !isBadCanvasCourseRecord(c));
       for (const defaultCourse of DEFAULT_COURSES) {
@@ -5003,11 +5028,16 @@
 
     const existing = state.courses.find((c) => c.id === `canvas-course-${cid}` || (canvasCode && String(c.code||"").toLowerCase() === canvasCode.toLowerCase()) || String(c.name||"").toLowerCase() === canvasName.toLowerCase());
     if (existing) {
-      if (period && !existing.period) existing.period = period;
+      if (period && !existing.period) {
+        existing.period = period;
+        existing.periodSource = "canvas";
+      } else {
+        applySyncedCoursePeriod(existing, period);
+      }
       return existing.id;
     }
 
-    const newCourse = { id: `canvas-course-${cid}`, name: canvasName, code: canvasCode, period, color: colorFromString(`${canvasName}-${cid}`), source: "canvas", userColor: false };
+    const newCourse = { id: `canvas-course-${cid}`, name: canvasName, code: canvasCode, period, periodSource: period ? "canvas" : "", color: colorFromString(`${canvasName}-${cid}`), source: "canvas", userColor: false };
     state.courses.push(newCourse);
     return newCourse.id;
   }
@@ -5028,12 +5058,12 @@
       if (existing) {
         existing.name = name || existing.name;
         existing.code = code || existing.code;
-        if (period) existing.period = period;
+        applySyncedCoursePeriod(existing, period);
         existing.color = isValidCourseColor(existing.color) ? existing.color : colorFromString(`${name}-${cid}`);
         existing.userColor = Boolean(existing.userColor);
         updated++;
       } else {
-        state.courses.push({ id, name, code, period, color: colorFromString(`${name}-${cid}`), source: "canvas", userColor: false });
+        state.courses.push({ id, name, code, period, periodSource: period ? "canvas" : "", color: colorFromString(`${name}-${cid}`), source: "canvas", userColor: false });
         added++;
       }
     }
@@ -6153,7 +6183,8 @@
     
     document.getElementById("courseForm")?.addEventListener("submit", e => {
       e.preventDefault();
-      state.courses.push({ id:`c-${Date.now()}`, name: document.getElementById("courseName").value, code: document.getElementById("courseCode").value, period: normalizeCoursePeriod(document.getElementById("coursePeriod").value), color: document.getElementById("courseColor").value });
+      const period = normalizeCoursePeriod(document.getElementById("coursePeriod").value);
+      state.courses.push({ id:`c-${Date.now()}`, name: document.getElementById("courseName").value, code: document.getElementById("courseCode").value, period, periodSource: period ? "user" : "", periodUserEditedAt: period ? new Date().toISOString() : null, color: document.getElementById("courseColor").value });
       saveState(); e.target.reset(); renderAll();
     });
 
@@ -6186,6 +6217,8 @@
       const course = state.courses.find(c => c.id === select.dataset.id);
       if (!course) return;
       course.period = normalizeCoursePeriod(select.value);
+      course.periodSource = course.period ? "user" : "";
+      course.periodUserEditedAt = new Date().toISOString();
       saveState();
       renderAll();
     });
