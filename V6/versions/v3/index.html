@@ -219,6 +219,13 @@
   .timeline-item.past { opacity: 0.5; background: transparent; border-color: transparent; }
   .timeline-time { font-weight: 700; color: var(--muted); min-width: 75px; }
   .timeline-name { font-weight: 600; flex: 1; }
+  .period-schedule-list { display: grid; gap: 8px; margin-top: 1rem; }
+  .period-schedule-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 9px 10px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-gray); }
+  .period-schedule-row.active { background: rgba(255, 199, 44, 0.22); border-color: rgba(255, 199, 44, 0.75); box-shadow: var(--shadow-sm); }
+  .period-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 28px; border-radius: 999px; background: var(--navy-primary); color: var(--primary-content); font-weight: 800; font-size: 0.82rem; }
+  .period-course-name { font-weight: 800; color: var(--text-dark); line-height: 1.2; }
+  .period-course-meta { display: block; color: var(--muted); font-size: 0.78rem; margin-top: 2px; }
+  .period-time { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
 
   /* Logo SVG */
   .eagle-icon { width: 28px; height: 28px; fill: var(--gold); }
@@ -790,6 +797,14 @@
           <!-- Rendered via JS -->
         </div>
       </div>
+    </aside>
+    <aside class="panel col-4 dashboard-widget" data-dashboard-widget="period-schedule">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+        <h2>Periods</h2>
+        <button class="button" type="button" style="padding: 0.45rem 0.7rem;" onclick="navigate('settings')">Edit</button>
+      </div>
+      <p class="mini-text" style="margin-top: 4px;">Your EPS period lineup from Canvas courses.</p>
+      <div id="periodScheduleList" class="period-schedule-list"></div>
     </aside>
     <article class="panel quote-panel col-4 dashboard-widget" data-dashboard-widget="quote">
       <div class="quote-text" id="quoteText">Focus on the step in front of you, not the whole staircase.</div>
@@ -1582,6 +1597,7 @@
     { id: "today", label: "Today Plan", defaultSize: "wide" },
     { id: "timer", label: "Focus Timer", defaultSize: "small" },
     { id: "schedule", label: "Schedule", defaultSize: "small" },
+    { id: "period-schedule", label: "Periods", defaultSize: "small" },
     { id: "quote", label: "Quote (Weekend)", defaultSize: "small", hidden: true },
     { id: "membean", label: "Membean", defaultSize: "small" },
     { id: "notifications", label: "Notifications", defaultSize: "small" },
@@ -1996,6 +2012,7 @@
       if (!merged.scheduleEnabled) {
         merged.dashboardSections.schedule = false;
         merged.dashboardLayout.visible.schedule = false;
+        merged.dashboardLayout.visible["period-schedule"] = false;
         delete merged.dashboardExpandedSections.schedule;
       }
       merged.tasks = merged.tasks.filter(task => String(task?.source || "").toLowerCase() !== "membean");
@@ -2957,6 +2974,7 @@
       updateCurrentPeriod();
       saveState();
       renderScheduleCard();
+      renderPeriodScheduleCard();
       renderEpsSchedule(data);
     } catch (err) {
       console.warn('Could not fetch live schedule:', err);
@@ -4237,6 +4255,75 @@
         <span class="timeline-name">${labelText}</span>
       </div>`;
     }).join("");
+  }
+
+  function periodLettersFromLabel(value) {
+    const raw = String(value || "").toUpperCase();
+    const letters = [];
+    const periodMatch = raw.match(/\bPERIOD\s*([A-H])\b/);
+    if (periodMatch) letters.push(periodMatch[1]);
+    for (const match of raw.matchAll(/\b([A-H])\b/g)) {
+      if (!letters.includes(match[1])) letters.push(match[1]);
+    }
+    return letters.filter(letter => EPS_PERIODS.includes(letter));
+  }
+
+  function coursesByPeriod() {
+    const map = new Map();
+    for (const course of visibleCourses()) {
+      const period = normalizeCoursePeriod(course.period);
+      if (!period) continue;
+      if (!map.has(period)) map.set(period, []);
+      map.get(period).push(course);
+    }
+    return map;
+  }
+
+  function periodScheduleRows() {
+    const liveBlocks = normalizeScheduleBlockTimes(scheduleBlocksForDivision(getTodaysEpsSchedule()));
+    const schoolPeriodBlocks = liveBlocks
+      .map(block => ({ ...block, letters: periodLettersFromLabel(block.label || block.id) }))
+      .filter(block => block.letters.length);
+    if (schoolPeriodBlocks.length) {
+      return schoolPeriodBlocks.flatMap(block => block.letters.map(letter => ({ letter, block })));
+    }
+    return EPS_PERIODS.map(letter => ({ letter, block: null }));
+  }
+
+  function renderPeriodScheduleCard() {
+    const list = document.getElementById("periodScheduleList");
+    if (!list) return;
+    if (!state.scheduleEnabled) {
+      list.innerHTML = "<p class='empty'>Turn on Show schedule in Settings to use period lineup.</p>";
+      return;
+    }
+    const byPeriod = coursesByPeriod();
+    const rows = periodScheduleRows();
+    const now = nowMinutes(new Date());
+    const seen = new Set();
+    const html = rows.map(({ letter, block }) => {
+      const key = block ? `${letter}-${block.start}-${block.end}` : letter;
+      if (seen.has(key)) return "";
+      seen.add(key);
+      const courses = byPeriod.get(letter) || [];
+      const course = courses[0];
+      const extraCount = courses.length > 1 ? ` +${courses.length - 1}` : "";
+      const active = block && now >= scheduleMinuteValue(block, "start") && now < scheduleMinuteValue(block, "end");
+      const courseName = course?.name || "No course synced yet";
+      const meta = course?.isStudyHall
+        ? "Free period / study hall"
+        : (course?.code || (course ? `Period ${letter}` : "Sync Canvas or edit this in Settings"));
+      const time = block ? `${escapeHtml(block.displayStart || toTimeLabel(block.start))}-${escapeHtml(block.displayEnd || toTimeLabel(block.end))}` : "";
+      return `<div class="period-schedule-row ${active ? "active" : ""}">
+        <span class="period-badge">${escapeHtml(letter)}</span>
+        <span>
+          <span class="period-course-name">${escapeHtml(courseName)}${extraCount}</span>
+          <span class="period-course-meta">${escapeHtml(meta)}</span>
+        </span>
+        <span class="period-time">${time}</span>
+      </div>`;
+    }).join("");
+    list.innerHTML = html || "<p class='empty'>No periods found yet. Sync Canvas or set course periods in Settings.</p>";
   }
 
   function renderQuoteCard() {
@@ -5718,6 +5805,7 @@
     state.scheduleEnabled = Boolean(enabled);
     state.dashboardSections.schedule = state.scheduleEnabled;
     state.dashboardLayout.visible.schedule = state.scheduleEnabled;
+    state.dashboardLayout.visible["period-schedule"] = state.scheduleEnabled;
     if (!state.scheduleEnabled) {
       state.currentPeriod = null;
       delete state.dashboardExpandedSections.schedule;
@@ -5818,7 +5906,7 @@
     if (onDashboard || onSettings) renderWorkspaceHealth();
     if (onDashboard) {
       renderTodayPlan();
-      renderHeaderStats(); renderScheduleCard(); renderQuoteCard(); renderFocusStats(); renderCourseProgress(); renderQuickTasks(); renderSmartCard(); renderMembeanCard(); renderCalendar();
+      renderHeaderStats(); renderScheduleCard(); renderPeriodScheduleCard(); renderQuoteCard(); renderFocusStats(); renderCourseProgress(); renderQuickTasks(); renderSmartCard(); renderMembeanCard(); renderCalendar();
     }
     if (onTasks) renderTaskList();
     if (onDashboard || onTimer) updateTimerUi();
