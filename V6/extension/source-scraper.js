@@ -182,7 +182,7 @@ async function scrapeCanvasCourses() {
       const label = cleanCanvasCourseName(courseLabel.name);
       const courseId = canvasCourseIdFromCourseHomeHref(node.getAttribute?.("href") || "");
       if (!courseId || !isLikelyCanvasCourseName(label)) return null;
-      return { id: courseId, name: label, course_code: cleanCanvasCourseName(courseLabel.code), source: "canvas" };
+      return { id: courseId, name: label, course_code: cleanCanvasCourseName(courseLabel.code), period: courseLabel.period || "", source: "canvas" };
     })
     .filter(Boolean)
   ];
@@ -194,6 +194,7 @@ function normalizeCanvasCourseRecord(course, idOverride = "") {
   const id = String(idOverride || course?.id || course?.course_id || course?.assetString?.match?.(/course_(\d+)/)?.[1] || "").trim();
   const rawName = course?.shortName || course?.originalName || course?.name || course?.longName || course?.courseCode || course?.course_code || "";
   const rawCode = course?.courseCode || course?.course_code || course?.code || "";
+  const rawPeriod = course?.period || course?.course_period || course?.section || extractCanvasCoursePeriod(`${course?.subtitle || ""} ${course?.term || ""}`);
   if (hasBlockedCanvasCourseKeyword(`${rawName} ${rawCode}`)) return null;
   const name = cleanCanvasCourseName(rawName);
   if (!id || !isLikelyCanvasCourseName(name)) return null;
@@ -201,6 +202,7 @@ function normalizeCanvasCourseRecord(course, idOverride = "") {
     id,
     name,
     course_code: cleanCanvasCourseName(rawCode),
+    period: normalizeCanvasCoursePeriod(rawPeriod),
     source: "canvas"
   };
 }
@@ -226,11 +228,14 @@ function canvasCourseLabelFromLink(link) {
       "h3"
     ].join(",")));
     const code = text(card.querySelector?.(".ic-DashboardCard__header-subtitle, [class*='DashboardCard__header-subtitle']"));
-    if (title) return { name: title, code };
+    if (title) return { name: title, code, period: extractCanvasCoursePeriod(text(card)) };
   }
+  const courseListItem = link?.closest?.("li, .course-list-item, [role='listitem'], [class*='course']");
+  const scopeText = text(courseListItem) || text(link?.parentElement) || text(link);
   return {
     name: text(link?.querySelector?.(".ellipsible, [data-testid='dashboard-card-title'], h2, h3")) || text(link),
-    code: ""
+    code: "",
+    period: extractCanvasCoursePeriod(scopeText)
   };
 }
 
@@ -247,6 +252,7 @@ function dashboardCoursesFromApiCards(cards) {
         id,
         name,
         course_code: String(rawCode),
+        period: normalizeCanvasCoursePeriod(card?.period || card?.course_period || card?.section || ""),
         source: "canvas"
       };
     })
@@ -325,9 +331,19 @@ function scrapeCanvasDashboardCardCourses() {
       id,
       name,
       course_code: cleanCanvasCourseName(cardLabel.code),
+      period: cardLabel.period || extractCanvasCoursePeriod(text(card)),
       source: "canvas"
     };
   }).filter(Boolean);
+}
+
+function normalizeCanvasCoursePeriod(value) {
+  const match = String(value || "").toUpperCase().match(/\b(?:PERIOD\s*)?([A-H])\b/);
+  return match ? match[1] : "";
+}
+
+function extractCanvasCoursePeriod(value) {
+  return normalizeCanvasCoursePeriod(String(value || "").match(/\bPeriod\s+[A-H]\b/i)?.[0] || value);
 }
 
 async function ensureCoursesForCanvasTasks(tasks, courses) {

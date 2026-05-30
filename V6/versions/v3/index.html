@@ -312,6 +312,7 @@
   .tight-form { display: grid; gap: 10px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .canvas-form { display: grid; gap: 10px; }
   .schedule-form { display: grid; gap: 10px; grid-template-columns: 1fr 1fr 1fr auto; margin-bottom: 1rem; }
+  .course-period-select { min-width: 118px; max-width: 160px; padding: 0.45rem 0.55rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--panel); color: var(--text-dark); font: inherit; }
 
   /* Status & Progress */
   .status-chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 6px 14px; font-size: 0.75rem; letter-spacing: 0.05em; font-weight: 700; text-transform: uppercase; margin-bottom: 12px; }
@@ -872,11 +873,15 @@
         </article>
 
         <article class="panel col-6">
-          <h2>Membean</h2>
+          <h2>Integrations</h2>
           <label style="display:flex; gap:8px; align-items:center; color:var(--text-dark);">
             <input id="membeanEnabled" type="checkbox" /> I use Membean
           </label>
           <p class="mini-text" style="margin-top: 8px;">When off, Membean sync and alerts stay quiet, and the dashboard shows a simple off status.</p>
+          <label style="display:flex; gap:8px; align-items:center; color:var(--text-dark); margin-top: 12px;">
+            <input id="scheduleEnabled" type="checkbox" /> Show schedule
+          </label>
+          <p class="mini-text" style="margin-top: 8px;">When on, EPStudy shows school schedule awareness and lets the extension use Canvas course period data when it can read it.</p>
           <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
             <h2 style="font-size: 1rem;">School Division</h2>
             <select id="schoolDivisionSelect" class="field">
@@ -892,6 +897,17 @@
           <form id="courseForm" class="tight-form" style="margin-bottom: 12px;">
             <input id="courseName" class="field" type="text" placeholder="Course Name" required style="grid-column: span 2;" />
             <input id="courseCode" class="field" type="text" placeholder="Code" />
+            <select id="coursePeriod" class="field" title="Period">
+              <option value="">No period</option>
+              <option value="A">Period A</option>
+              <option value="B">Period B</option>
+              <option value="C">Period C</option>
+              <option value="D">Period D</option>
+              <option value="E">Period E</option>
+              <option value="F">Period F</option>
+              <option value="G">Period G</option>
+              <option value="H">Period H</option>
+            </select>
             <input id="courseColor" class="field" type="color" value="#2563eb" style="padding: 2px;" />
             <button class="button primary" type="submit" style="grid-column: span 4;">Add Course</button>
           </form>
@@ -1367,6 +1383,10 @@
             <input id="guideMembeanEnabled" type="checkbox" />
             <span><strong>Use Membean</strong><span>Track weekly Membean sessions when you use Membean.</span></span>
           </label>
+          <label class="guide-choice">
+            <input id="guideScheduleEnabled" type="checkbox" />
+            <span><strong>Show Schedule</strong><span>Use EPS schedule blocks and Canvas course periods for class awareness.</span></span>
+          </label>
         </div>
       </section>
 
@@ -1396,7 +1416,7 @@
         <div id="guideSetupContent" class="guide-section-content" hidden>
         <div class="guide-flow">
           <div class="guide-flow-item">
-            <div><strong>Open the Settings page first.</strong><span>Choose Middle Schooler or Upper Schooler, enable Membean if you use it, pick a skin, and decide which dashboard sections should start expanded.</span></div>
+            <div><strong>Open the Settings page first.</strong><span>Choose Middle Schooler or Upper Schooler, enable Schedule and Membean if you use them, pick a skin, and decide which dashboard sections should start expanded.</span></div>
           </div>
           <div class="guide-flow-item">
             <div><strong>Sync from the extension.</strong><span>Keep EPStudy open, then visit signed-in Canvas, Membean, and TeamSnap schedule pages. The extension sends updates back to the dashboard and calendar.</span></div>
@@ -1419,6 +1439,7 @@
         <div id="guideFeaturesContent" class="guide-section-content" hidden>
         <div class="guide-columns">
           <div class="guide-tip"><strong>Change course colors</strong><span>In Settings, each course has a color picker. Those colors carry into tasks and calendar cards so your classes are easier to scan.</span></div>
+          <div class="guide-tip"><strong>Edit course periods</strong><span>Canvas can expose Period A-H in the Courses tray. EPStudy stores those periods and lets you correct them in Settings.</span></div>
           <div class="guide-tip"><strong>Dashboard expansion</strong><span>Settings lets you choose which dashboard sections start as compact buttons, so big panels stay out of the way until you need them.</span></div>
           <div class="guide-tip"><strong>Skins can do more than colors</strong><span>Some skins change the whole mood of the page, including animated or visual backgrounds. Use Show Skins to turn those effects on or off.</span></div>
           <div class="guide-tip"><strong>Music is optional</strong><span>Pick a chill, study, or lofi track in Settings, import your own audio, or choose None if you want EPStudy quiet.</span></div>
@@ -1517,6 +1538,7 @@
 
   const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const LONG_DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const EPS_PERIODS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
   const DEFAULT_COURSES = [
     { id: "course-personal", name: "Personal", code: "PERS", color: "#8b5cf6" },
@@ -1731,6 +1753,7 @@
       musicMode: "none", musicVolume: 35, importedMusicName: "", importedMusicDataUrl: "",
       membeanEnabled: false,
       teamSnapEnabled: false,
+      scheduleEnabled: true,
       lastCourseResyncAt: null,
       calendarYear: now.getFullYear(), calendarMonth: now.getMonth(), calendarDay: now.getDate(), timerMinutes: 25,
 	      calendarView: "month",
@@ -1782,6 +1805,50 @@
   function hasBlockedCanvasCourseKeyword(value) {
     const label = String(value || "").replace(/\s+/g, " ").trim();
     return /\b(course analytics|view course stream)\b/i.test(label) || /^(assignments?|files?)$/i.test(label);
+  }
+
+  function normalizeCoursePeriod(value) {
+    const match = String(value || "").toUpperCase().match(/\b(?:PERIOD\s*)?([A-H])\b/);
+    return match ? match[1] : "";
+  }
+
+  function coursePeriodSelectOptions(selected = "") {
+    const current = normalizeCoursePeriod(selected);
+    return `<option value="">No period</option>${EPS_PERIODS.map(period => `<option value="${period}" ${period === current ? "selected" : ""}>Period ${period}</option>`).join("")}`;
+  }
+
+  function realCoursesForPeriodDetection() {
+    return state.courses.filter(course => !course.hidden && !course.isStudyHall && String(course.source || "") !== "schedule" && !["course-personal", "course-sports"].includes(String(course.id || "")));
+  }
+
+  function ensureMissingStudyHallPeriod() {
+    const courses = realCoursesForPeriodDetection();
+    const used = new Set(courses.map(course => normalizeCoursePeriod(course.period)).filter(Boolean));
+    if (used.size !== 7) return false;
+    const missing = EPS_PERIODS.find(period => !used.has(period));
+    if (!missing) return false;
+    const id = `study-hall-period-${missing.toLowerCase()}`;
+    const name = "Free Period / Study Hall";
+    const existing = state.courses.find(course => course.id === id || normalizeCoursePeriod(course.period) === missing && /free period|study hall/i.test(course.name || ""));
+    if (existing) {
+      existing.name = existing.name || name;
+      existing.code = existing.code || `Period ${missing}`;
+      existing.period = missing;
+      existing.hidden = false;
+      existing.source = existing.source || "schedule";
+      return false;
+    }
+    state.courses.push({
+      id,
+      name,
+      code: `Period ${missing}`,
+      period: missing,
+      color: "#94a3b8",
+      source: "schedule",
+      userColor: false,
+      isStudyHall: true
+    });
+    return true;
   }
 
   function skinUnlockMet(rule, snapshot = state) {
@@ -1904,6 +1971,12 @@
         merged.dashboardSections.membean = false;
         merged.notificationSettings.membean = false;
       }
+      merged.scheduleEnabled = typeof merged.scheduleEnabled === "boolean" ? merged.scheduleEnabled : true;
+      if (!merged.scheduleEnabled) {
+        merged.dashboardSections.schedule = false;
+        merged.dashboardLayout.visible.schedule = false;
+        delete merged.dashboardExpandedSections.schedule;
+      }
       merged.tasks = merged.tasks.filter(task => String(task?.source || "").toLowerCase() !== "membean");
       if (!merged.teamSnapEnabled) {
         merged.tasks = merged.tasks.filter(task => String(task?.source || "").toLowerCase() !== "teamsnap");
@@ -1916,6 +1989,7 @@
         id: c?.id ? String(c.id) : `course-${i}-${Math.random().toString(16).slice(2, 6)}`,
         name: c?.name ? String(c.name) : `Course ${i + 1}`,
         code: c?.code ? String(c.code) : "",
+        period: normalizeCoursePeriod(c?.period || c?.course_period || c?.section || ""),
         color: /^#([0-9a-f]{3}|[0-9a-f]{6})$|^hsl\(|^rgb\(/i.test(c?.color || "") ? String(c.color) : "#2563eb",
         userColor: Boolean(c?.userColor),
         hidden: Boolean(c?.hidden) || String(c?.id || "") === UNFILTERED_COURSE_ID
@@ -1965,6 +2039,11 @@
       if (!course || course.color === input.value) return;
       course.color = input.value;
       course.userColor = true;
+    });
+    document.querySelectorAll(".course-period-select").forEach(select => {
+      const course = state.courses.find(c => c.id === select.dataset.id);
+      if (!course) return;
+      course.period = normalizeCoursePeriod(select.value);
     });
   }
 
@@ -2772,7 +2851,7 @@
     if (status) status.textContent = statusMessage;
     setExtensionSyncing(true);
     logAnalyticsEvent("sync_extension_requested", { membeanEnabled: Boolean(state.membeanEnabled), teamSnapEnabled: Boolean(state.teamSnapEnabled) });
-    window.postMessage({ type: "EPSTUDY_EXTENSION_REQUEST_SYNC", config: { canvasDomain: getCanvasConfig().domain, membeanEnabled: Boolean(state.membeanEnabled) } }, bridgeTargetOrigin());
+    window.postMessage({ type: "EPSTUDY_EXTENSION_REQUEST_SYNC", config: { canvasDomain: getCanvasConfig().domain, membeanEnabled: Boolean(state.membeanEnabled), scheduleEnabled: Boolean(state.scheduleEnabled) } }, bridgeTargetOrigin());
   }
 
   function maybeRequestCourseResync(force = false) {
@@ -2840,6 +2919,7 @@
   
   // LIVE SCHEDULE FETCHING
   async function fetchLiveSchedule(date = new Date()) {
+    if (!state.scheduleEnabled) return;
     const dateStr = localDateKey(date.toISOString());
     const url = `https://four11.eastsideprep.org/epsnet/schedule_for_date?date=${dateStr}`;
     
@@ -2859,6 +2939,7 @@
   }
 
   function getTodaysEpsSchedule(date = new Date()) {
+    if (!state.scheduleEnabled) return null;
     const dateKey = localDateKey(date.toISOString());
     if (state.epsSchedules?.[dateKey]?.periods?.length) return state.epsSchedules[dateKey];
     if (state.liveSchedule?.date === dateKey && state.liveSchedule?.periods?.length) return state.liveSchedule;
@@ -4057,6 +4138,7 @@
   }
 
   function renderScheduleCard() {
+    if (!state.scheduleEnabled) return;
     updateCurrentPeriod();
     const status = getScheduleStatus(), avail = getAvailabilityStatus();
     const chip = document.getElementById("scheduleChip"), prim = document.getElementById("schedulePrimary"), prog = document.getElementById("scheduleProgress"), timeline = document.getElementById("scheduleTimeline");
@@ -4735,6 +4817,10 @@
   }
 
   async function fetchEpsScheduleForSelectedDate() {
+    if (!state.scheduleEnabled) {
+      renderEpsSchedule(null);
+      return;
+    }
     const dateKey = scheduleInfoDateKey();
     if (state.epsSchedules[dateKey]) {
       renderEpsSchedule(state.epsSchedules[dateKey]);
@@ -4911,13 +4997,17 @@
     const cid = String(courseIdRaw || canvasCourse?.id || "unknown");
     const canvasName = String(canvasCourse?.name || canvasCourse?.course_code || "").trim();
     const canvasCode = String(canvasCourse?.course_code || "").trim();
+    const period = normalizeCoursePeriod(canvasCourse?.period || canvasCourse?.course_period || canvasCourse?.section || "");
     if (!canvasName) return "";
     if (hasBlockedCanvasCourseKeyword(`${canvasName} ${canvasCode}`) || isCanvasNavigationCourseName(canvasName)) return "";
 
     const existing = state.courses.find((c) => c.id === `canvas-course-${cid}` || (canvasCode && String(c.code||"").toLowerCase() === canvasCode.toLowerCase()) || String(c.name||"").toLowerCase() === canvasName.toLowerCase());
-    if (existing) return existing.id;
+    if (existing) {
+      if (period && !existing.period) existing.period = period;
+      return existing.id;
+    }
 
-    const newCourse = { id: `canvas-course-${cid}`, name: canvasName, code: canvasCode, color: colorFromString(`${canvasName}-${cid}`), source: "canvas", userColor: false };
+    const newCourse = { id: `canvas-course-${cid}`, name: canvasName, code: canvasCode, period, color: colorFromString(`${canvasName}-${cid}`), source: "canvas", userColor: false };
     state.courses.push(newCourse);
     return newCourse.id;
   }
@@ -4930,6 +5020,7 @@
       const name = String(course.name || course.course_code || "").trim();
       if (!cid && !name) continue;
       const code = String(course.course_code || course.code || "").trim();
+      const period = normalizeCoursePeriod(course.period || course.course_period || course.section || "");
       if (!name) continue;
       if (hasBlockedCanvasCourseKeyword(`${name} ${code}`) || isCanvasNavigationCourseName(name)) continue;
       const id = cid ? `canvas-course-${cid}` : `canvas-course-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
@@ -4937,11 +5028,12 @@
       if (existing) {
         existing.name = name || existing.name;
         existing.code = code || existing.code;
+        if (period) existing.period = period;
         existing.color = isValidCourseColor(existing.color) ? existing.color : colorFromString(`${name}-${cid}`);
         existing.userColor = Boolean(existing.userColor);
         updated++;
       } else {
-        state.courses.push({ id, name, code, color: colorFromString(`${name}-${cid}`), source: "canvas", userColor: false });
+        state.courses.push({ id, name, code, period, color: colorFromString(`${name}-${cid}`), source: "canvas", userColor: false });
         added++;
       }
     }
@@ -5592,6 +5684,17 @@
     }
   }
 
+  function setScheduleEnabled(enabled) {
+    state.scheduleEnabled = Boolean(enabled);
+    state.dashboardSections.schedule = state.scheduleEnabled;
+    state.dashboardLayout.visible.schedule = state.scheduleEnabled;
+    if (!state.scheduleEnabled) {
+      state.currentPeriod = null;
+      delete state.dashboardExpandedSections.schedule;
+      state.dashboardExpansionSections.schedule = false;
+    }
+  }
+
   function syncGuideSetupControls() {
     document.querySelectorAll("[data-guide-division]").forEach(input => {
       input.checked = input.value === state.schoolDivision;
@@ -5600,10 +5703,13 @@
     if (guideTeamSnap) guideTeamSnap.checked = Boolean(state.teamSnapEnabled);
     const guideMembean = document.getElementById("guideMembeanEnabled");
     if (guideMembean) guideMembean.checked = Boolean(state.membeanEnabled);
+    const guideSchedule = document.getElementById("guideScheduleEnabled");
+    if (guideSchedule) guideSchedule.checked = Boolean(state.scheduleEnabled);
   }
 
   function renderAll() {
     if (removeTasksWithoutRealCourse(false)) saveState();
+    if (ensureMissingStudyHallPeriod()) saveState();
     const page = state.currentPage || "dashboard";
     const onDashboard = page === "dashboard";
     const onTasks = page === "tasks";
@@ -5629,6 +5735,7 @@
     const sv = document.getElementById("skinsVisible"); if (sv) sv.checked = Boolean(state.skinsVisible);
     const mbe = document.getElementById("membeanEnabled"); if (mbe) mbe.checked = Boolean(state.membeanEnabled);
     const tse = document.getElementById("teamSnapEnabled"); if (tse) tse.checked = Boolean(state.teamSnapEnabled);
+    const sce = document.getElementById("scheduleEnabled"); if (sce) sce.checked = Boolean(state.scheduleEnabled);
     const sds = document.getElementById("schoolDivisionSelect"); if (sds) sds.value = state.schoolDivision;
     syncGuideSetupControls();
     if (onSettings || onTimer || onDashboard) syncMusicSettings();
@@ -5642,7 +5749,7 @@
     if (clist && onSettings) {
       clist.className = "course-list-grid";
       const shownCourses = visibleCourses();
-      clist.innerHTML = shownCourses.length ? shownCourses.map(c => `<div class="course-row"><span><input type="color" value="${c.color}" data-id="${c.id}" class="course-color-swatch" style="border:none;background:none;width:20px;height:20px;padding:0;cursor:pointer;vertical-align:middle;margin-right:10px;" /><span style="font-weight:600">${escapeHtml(c.name)}</span> ${c.code?`<span class="mini-text">(${escapeHtml(c.code)})</span>`:""}</span><button class="icon-button" data-action="delete-course" data-id="${c.id}">✕</button></div>`).join("") : "<p class='empty'>No courses added.</p>";
+      clist.innerHTML = shownCourses.length ? shownCourses.map(c => `<div class="course-row"><span><input type="color" value="${c.color}" data-id="${c.id}" class="course-color-swatch" style="border:none;background:none;width:20px;height:20px;padding:0;cursor:pointer;vertical-align:middle;margin-right:10px;" /><span style="font-weight:600">${escapeHtml(c.name)}</span> ${c.code?`<span class="mini-text">(${escapeHtml(c.code)})</span>`:""}</span><select class="course-period-select" data-id="${c.id}" aria-label="Period for ${escapeHtml(c.name)}">${coursePeriodSelectOptions(c.period)}</select><button class="icon-button" data-action="delete-course" data-id="${c.id}">✕</button></div>`).join("") : "<p class='empty'>No courses added.</p>";
     }
     
 
@@ -5755,7 +5862,8 @@
       skinLockCheckbox: state.skinChangeRestrictedToFreePeriods,
       confettiEnabled: state.confettiEnabled,
       membeanEnabled: state.membeanEnabled,
-      teamSnapEnabled: state.teamSnapEnabled
+      teamSnapEnabled: state.teamSnapEnabled,
+      scheduleEnabled: state.scheduleEnabled
     };
     for (const [id, val] of Object.entries(els)) {
       const el = document.getElementById(id);
@@ -6045,7 +6153,7 @@
     
     document.getElementById("courseForm")?.addEventListener("submit", e => {
       e.preventDefault();
-      state.courses.push({ id:`c-${Date.now()}`, name: document.getElementById("courseName").value, code: document.getElementById("courseCode").value, color: document.getElementById("courseColor").value });
+      state.courses.push({ id:`c-${Date.now()}`, name: document.getElementById("courseName").value, code: document.getElementById("courseCode").value, period: normalizeCoursePeriod(document.getElementById("coursePeriod").value), color: document.getElementById("courseColor").value });
       saveState(); e.target.reset(); renderAll();
     });
 
@@ -6070,6 +6178,16 @@
       renderCalendar();
       renderFullCalendar();
       updateAllAssignmentsDisplay();
+    });
+
+    document.getElementById("courseList")?.addEventListener("change", e => {
+      const select = e.target.closest(".course-period-select");
+      if (!select) return;
+      const course = state.courses.find(c => c.id === select.dataset.id);
+      if (!course) return;
+      course.period = normalizeCoursePeriod(select.value);
+      saveState();
+      renderAll();
     });
 
     document.getElementById("courseList")?.addEventListener("change", e => {
@@ -6427,6 +6545,12 @@
       saveState(); renderAll();
     });
 
+    document.getElementById("scheduleEnabled")?.addEventListener("change", e => {
+      setScheduleEnabled(e.target.checked);
+      saveState(); renderAll();
+      if (state.scheduleEnabled) fetchLiveSchedule();
+    });
+
     document.getElementById("schoolDivisionSelect")?.addEventListener("change", e => {
       state.schoolDivision = e.target.value === "ms" ? "ms" : "us";
       saveState(); renderAll();
@@ -6614,6 +6738,11 @@
     document.getElementById("guideMembeanEnabled")?.addEventListener("change", e => {
       setMembeanEnabled(e.target.checked);
       saveState(); renderAll();
+    });
+    document.getElementById("guideScheduleEnabled")?.addEventListener("change", e => {
+      setScheduleEnabled(e.target.checked);
+      saveState(); renderAll();
+      if (state.scheduleEnabled) fetchLiveSchedule();
     });
     document.getElementById("tutorialCloseBtn")?.addEventListener("click", () => { state.tutorialSeen=true; saveState(); document.getElementById("tutorialModal")?.classList.remove("open"); });
     document.getElementById("canvasTokenGuideBtn")?.addEventListener("click", () => document.getElementById("canvasTokenModal")?.classList.add("open"));
