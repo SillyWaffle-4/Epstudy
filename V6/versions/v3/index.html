@@ -1772,6 +1772,7 @@
       teamSnapEnabled: false,
       scheduleEnabled: true,
       lastCourseResyncAt: null,
+      lastScheduleCourseResyncAt: null,
       calendarYear: now.getFullYear(), calendarMonth: now.getMonth(), calendarDay: now.getDate(), timerMinutes: 25,
 	      calendarView: "month",
 	      schoolDivision: "us",
@@ -1993,6 +1994,7 @@
       merged.epsSchedules = typeof merged.epsSchedules === "object" && merged.epsSchedules ? merged.epsSchedules : {};
       merged.lunchItems = typeof merged.lunchItems === "object" && merged.lunchItems ? merged.lunchItems : {};
       merged.lastCourseResyncAt = typeof merged.lastCourseResyncAt === "string" ? merged.lastCourseResyncAt : null;
+      merged.lastScheduleCourseResyncAt = typeof merged.lastScheduleCourseResyncAt === "string" ? merged.lastScheduleCourseResyncAt : null;
       merged.dashboardLayout = normalizeDashboardLayout(merged.dashboardLayout);
       merged.dashboardLayoutEditing = Boolean(merged.dashboardLayoutEditing);
       merged.skinLibraryOpen = true;
@@ -2896,13 +2898,26 @@
     window.postMessage({ type: "EPSTUDY_EXTENSION_REQUEST_SYNC", config: { canvasDomain: getCanvasConfig().domain, membeanEnabled: Boolean(state.membeanEnabled), scheduleEnabled: Boolean(state.scheduleEnabled) } }, bridgeTargetOrigin());
   }
 
+  function schedulePeriodsNeedSync() {
+    if (!state.scheduleEnabled) return false;
+    const courses = realCoursesForPeriodDetection();
+    const periodCount = new Set(courses.map(course => normalizeCoursePeriod(course.period)).filter(Boolean)).size;
+    return courses.length === 0 || periodCount < 7;
+  }
+
   function maybeRequestCourseResync(force = false) {
-    const last = state.lastCourseResyncAt ? new Date(state.lastCourseResyncAt).getTime() : 0;
-    const due = !Number.isFinite(last) || Date.now() - last > 24 * 60 * 60 * 1000;
-    if (!force && !due) return;
-    state.lastCourseResyncAt = new Date().toISOString();
+    const options = typeof force === "object" && force ? force : { force: Boolean(force), schedule: Boolean(force) };
+    const now = Date.now();
+    const lastCourse = state.lastCourseResyncAt ? new Date(state.lastCourseResyncAt).getTime() : 0;
+    const lastSchedule = state.lastScheduleCourseResyncAt ? new Date(state.lastScheduleCourseResyncAt).getTime() : 0;
+    const courseDue = !Number.isFinite(lastCourse) || now - lastCourse > 24 * 60 * 60 * 1000;
+    const scheduleDue = Boolean(options.schedule) && schedulePeriodsNeedSync() && (!Number.isFinite(lastSchedule) || now - lastSchedule > 15 * 60 * 1000);
+    if (!options.force && !courseDue && !scheduleDue) return;
+    const stamp = new Date().toISOString();
+    if (scheduleDue || options.schedule) state.lastScheduleCourseResyncAt = stamp;
+    if (courseDue || options.force) state.lastCourseResyncAt = stamp;
     saveState();
-    requestExtensionSync("Refreshing Canvas courses from the extension...");
+    requestExtensionSync(scheduleDue ? "Refreshing Canvas periods from the extension..." : "Refreshing Canvas courses from the extension...");
   }
 
   function requestExtensionHealth() {
@@ -5825,6 +5840,12 @@
     if (guideSchedule) guideSchedule.checked = Boolean(state.scheduleEnabled);
   }
 
+  function ensureScheduleAutoSync() {
+    if (!state.scheduleEnabled) return;
+    fetchLiveSchedule();
+    maybeRequestCourseResync({ schedule: true });
+  }
+
   function renderAll() {
     if (removeTasksWithoutRealCourse(false)) saveState();
     if (ensureMissingStudyHallPeriod()) saveState();
@@ -6669,7 +6690,7 @@
     document.getElementById("scheduleEnabled")?.addEventListener("change", e => {
       setScheduleEnabled(e.target.checked);
       saveState(); renderAll();
-      if (state.scheduleEnabled) fetchLiveSchedule();
+      if (state.scheduleEnabled) ensureScheduleAutoSync();
     });
 
     document.getElementById("schoolDivisionSelect")?.addEventListener("change", e => {
@@ -6863,7 +6884,7 @@
     document.getElementById("guideScheduleEnabled")?.addEventListener("change", e => {
       setScheduleEnabled(e.target.checked);
       saveState(); renderAll();
-      if (state.scheduleEnabled) fetchLiveSchedule();
+      if (state.scheduleEnabled) ensureScheduleAutoSync();
     });
     document.getElementById("tutorialCloseBtn")?.addEventListener("click", () => { state.tutorialSeen=true; saveState(); document.getElementById("tutorialModal")?.classList.remove("open"); });
     document.getElementById("canvasTokenGuideBtn")?.addEventListener("click", () => document.getElementById("canvasTokenModal")?.classList.add("open"));
@@ -7056,12 +7077,11 @@
   if(tdd && !tdd.value) tdd.value = new Date().toISOString().slice(0, 10);
   
 	  renderAll();
-	  fetchLiveSchedule();
-	  maybeRequestCourseResync();
+	  ensureScheduleAutoSync();
 	  
 	  window.setInterval(() => { renderScheduleCard(); renderQuoteCard(); renderSmartCard(); renderMembeanCard(); publishFocusShield(); }, 30000);
-	  window.setInterval(fetchLiveSchedule, 10 * 60 * 1000);
-	  window.setInterval(() => maybeRequestCourseResync(), 60 * 60 * 1000);
+	  window.setInterval(() => { if (state.scheduleEnabled) fetchLiveSchedule(); }, 10 * 60 * 1000);
+	  window.setInterval(() => maybeRequestCourseResync({ schedule: true }), 15 * 60 * 1000);
 	</script>
 
 </body>
