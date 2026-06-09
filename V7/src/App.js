@@ -8,7 +8,7 @@ const STORAGE_KEY = "epstudy_secure_pro_v7";
 const LEGACY_STORAGE_KEY = "epstudy_secure_pro_v6";
 const EPSTUDY_VERSION = "v7-react";
 const EPS_PERIODS = ["A", "B", "C", "D", "E", "F", "G", "H"];
-const PAGES = ["dashboard", "tasks", "calendar", "timer", "settings"];
+const PAGES = ["dashboard", "tasks", "calendar", "timer", "cosmetics", "settings"];
 const DEFAULT_WIDGETS = {
   today: true,
   timer: true,
@@ -27,6 +27,16 @@ const QUOTES = [
   ["Make the next right task obvious, then do it.", "EPStudy"],
   ["Preparation is quieter than panic and usually faster.", "EPStudy"]
 ];
+const SKINS = [
+  { id: "default", name: "Clean Sky", note: "Classic EPStudy calm.", className: "skin-default" },
+  { id: "forest", name: "Forest", note: "Leafy greens and warm focus.", className: "skin-forest" },
+  { id: "ocean", name: "Ocean", note: "Blue, bright, and steady.", className: "skin-ocean" },
+  { id: "sunset", name: "Sunset", note: "Coral and gold study light.", className: "skin-sunset" },
+  { id: "pixel", name: "Pixel Meadow", note: "A light 2D blocky wallpaper.", className: "skin-pixel" },
+  { id: "cat", name: "Cat Night", note: "Unlocked with AARINI.", className: "skin-cat", secret: "aarini" },
+  { id: "lightbulb", name: "Bright Idea", note: "Unlocked with GENIUS.", className: "skin-lightbulb", secret: "genius" }
+];
+const DEFAULT_UNLOCKED_SKINS = ["default", "forest", "ocean", "sunset", "pixel"];
 
 function defaultState() {
   const now = new Date();
@@ -44,12 +54,24 @@ function defaultState() {
     epsSchedules: {},
     liveSchedule: null,
     extensionSync: { lastSyncAt: null, sources: {}, status: null, teamSnapLinks: [] },
+    membeanProgress: { completedSessions: 0, requiredSessions: 3, minutesPerSession: 10, updatedAt: null },
+    selectedSkin: "default",
+    unlockedSkins: DEFAULT_UNLOCKED_SKINS,
     timerMinutes: 25,
     timerTaskId: "",
-    currentPage: "dashboard",
+    currentPage: initialPage("dashboard"),
     calendarYear: now.getFullYear(),
     calendarMonth: now.getMonth()
   };
+}
+
+function initialPage(fallback = "dashboard") {
+  try {
+    const page = new URLSearchParams(window.location.search).get("page");
+    return PAGES.includes(page) ? page : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 function loadState() {
@@ -66,12 +88,15 @@ function loadState() {
     const migrated = {
       ...base,
       ...parsed,
-      currentPage: PAGES.includes(parsed.currentPage) ? parsed.currentPage : "dashboard",
+      currentPage: initialPage(PAGES.includes(parsed.currentPage) ? parsed.currentPage : "dashboard"),
       scheduleEnabled: typeof parsed.scheduleEnabled === "boolean" ? parsed.scheduleEnabled : true,
       membeanEnabled: Boolean(parsed.membeanEnabled),
       teamSnapEnabled: Boolean(parsed.teamSnapEnabled),
       canvasDomain: String(parsed.canvasDomain || parsed.canvas?.domain || base.canvasDomain),
       dashboardWidgets: { ...DEFAULT_WIDGETS, ...(parsed.dashboardWidgets || {}) },
+      selectedSkin: skinById(parsed.selectedSkin) ? parsed.selectedSkin : "default",
+      unlockedSkins: normalizeUnlockedSkins(parsed.unlockedSkins),
+      membeanProgress: normalizeMembeanProgress(parsed.membeanProgress),
       tasks: normalizeTasks(parsed.tasks || []),
       courses: normalizeCourses(parsed.courses || DEFAULT_COURSES),
       epsSchedules: parsed.epsSchedules && typeof parsed.epsSchedules === "object" ? parsed.epsSchedules : {},
@@ -82,6 +107,30 @@ function loadState() {
   } catch {
     return base;
   }
+}
+
+function normalizeUnlockedSkins(value) {
+  const ids = new Set(DEFAULT_UNLOCKED_SKINS);
+  (Array.isArray(value) ? value : []).forEach(id => {
+    if (skinById(id)) ids.add(String(id));
+  });
+  return Array.from(ids);
+}
+
+function skinById(id) {
+  return SKINS.find(skin => skin.id === String(id || ""));
+}
+
+function normalizeMembeanProgress(value) {
+  const completed = Math.max(0, Number(value?.completedSessions || value?.completed || 0));
+  const required = Math.max(1, Number(value?.requiredSessions || value?.required || 3));
+  const minutes = Math.max(1, Number(value?.minutesPerSession || value?.minutes || 10));
+  return {
+    completedSessions: Math.min(completed, required),
+    requiredSessions: required,
+    minutesPerSession: minutes,
+    updatedAt: value?.updatedAt || null
+  };
 }
 
 function normalizeCourses(courses) {
@@ -191,12 +240,30 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const skin = skinById(state.selectedSkin) || skinById("default");
+    document.body.classList.remove(...SKINS.map(item => item.className));
+    if (skin?.className) document.body.classList.add(skin.className);
+  }, [state.selectedSkin]);
+
+  useEffect(() => {
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...state, epstudyVersion: EPSTUDY_VERSION }));
     }, 120);
     return () => clearTimeout(saveTimer.current);
   }, [state]);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      window.postMessage({
+        type: "EPSTUDY_WEBSITE_TASKS",
+        tasks: state.tasks,
+        ignoredTaskKeys: state.foreverIgnoredTaskKeys || [],
+        websiteVersion: "normal"
+      }, bridgeTargetOrigin());
+    }, 220);
+    return () => clearTimeout(id);
+  }, [state.tasks, state.foreverIgnoredTaskKeys]);
 
   useEffect(() => {
     function onMessage(event) {
@@ -262,10 +329,56 @@ function App() {
       config: {
         canvasDomain: state.canvasDomain,
         membeanEnabled: Boolean(state.membeanEnabled),
+        teamSnapEnabled: Boolean(state.teamSnapEnabled),
         scheduleEnabled: Boolean(state.scheduleEnabled)
       }
     }, bridgeTargetOrigin());
     setTimeout(() => setSyncing(false), 18000);
+  }
+
+  function openSource(source) {
+    window.postMessage({ type: "EPSTUDY_OPEN_SOURCE", source }, bridgeTargetOrigin());
+  }
+
+  function submitConfigCode(code) {
+    const value = String(code || "").trim().toLowerCase();
+    if (!value) return;
+    if (value === "simple") {
+      window.location.href = "../V6/simple.html";
+      return;
+    }
+    if (value === "normal" || value === "v6") {
+      window.location.href = "../V6/index.html";
+      return;
+    }
+    if (value === "v7") {
+      navigate("dashboard");
+      return;
+    }
+    if (value === "aarini") {
+      unlockSkin("cat", "cosmetics");
+      return;
+    }
+    if (value === "genius") {
+      unlockSkin("lightbulb", "cosmetics");
+    }
+  }
+
+  function unlockSkin(id, page = state.currentPage) {
+    setState(prev => ({
+      ...prev,
+      currentPage: page,
+      selectedSkin: id,
+      unlockedSkins: Array.from(new Set([...(prev.unlockedSkins || DEFAULT_UNLOCKED_SKINS), id]))
+    }));
+  }
+
+  function selectSkin(id) {
+    setState(prev => {
+      const unlocked = normalizeUnlockedSkins(prev.unlockedSkins);
+      if (!unlocked.includes(id)) return prev;
+      return { ...prev, selectedSkin: id, unlockedSkins: unlocked };
+    });
   }
 
   function toggleTask(taskId) {
@@ -353,12 +466,17 @@ function App() {
             updateState=${updateState}
           />
         `}
+        ${state.currentPage === "cosmetics" && html`
+          <${CosmeticsPage} state=${state} selectSkin=${selectSkin} />
+        `}
         ${state.currentPage === "settings" && html`
           <${SettingsPage}
             state=${state}
             updateState=${updateState}
             setWidget=${setWidget}
             requestExtensionSync=${requestExtensionSync}
+            openSource=${openSource}
+            submitConfigCode=${submitConfigCode}
             syncing=${syncing}
           />
         `}
@@ -388,6 +506,7 @@ function Dashboard({ state, coursesById, todayTasks, weekTasks, quote, toggleTas
         </article>
       `}
       ${widgets.schedule && html`<${ScheduleWidget} state=${state} />`}
+      ${(state.membeanEnabled || state.membeanProgress?.updatedAt) && html`<${MembeanWidget} progress=${state.membeanProgress} />`}
       ${widgets.periods && html`<${PeriodsWidget} courses=${state.courses} schedule=${todaysSchedule(state)} />`}
       ${widgets.calendar && html`
         <article className="panel full">
@@ -406,6 +525,19 @@ function Dashboard({ state, coursesById, todayTasks, weekTasks, quote, toggleTas
         <span>${quote[1]}</span>
       </article>
     </section>
+  `;
+}
+
+function MembeanWidget({ progress }) {
+  const data = normalizeMembeanProgress(progress);
+  const pct = Math.min(100, Math.round((data.completedSessions / data.requiredSessions) * 100));
+  return html`
+    <article className="panel">
+      <h2>Membean</h2>
+      <p className="big-line">${data.completedSessions}/${data.requiredSessions} sessions</p>
+      <div className="progress-track"><span style=${{ width: `${pct}%` }} /></div>
+      <p className="muted">${data.minutesPerSession}+ minutes each${data.updatedAt ? ` · updated ${new Date(data.updatedAt).toLocaleDateString()}` : ""}</p>
+    </article>
   `;
 }
 
@@ -558,7 +690,8 @@ function TimerPage({ state, tasks, timerSeconds, timerRunning, setTimerSeconds, 
   `;
 }
 
-function SettingsPage({ state, updateState, setWidget, requestExtensionSync, syncing }) {
+function SettingsPage({ state, updateState, setWidget, requestExtensionSync, openSource, submitConfigCode, syncing }) {
+  const [configCode, setConfigCode] = useState("");
   return html`
     <section className="settings-grid">
       <article className="panel">
@@ -568,6 +701,11 @@ function SettingsPage({ state, updateState, setWidget, requestExtensionSync, syn
         <label className="check-row"><input type="checkbox" checked=${state.membeanEnabled} onChange=${event => updateState({ membeanEnabled: event.target.checked })} /> Membean</label>
         <label className="check-row"><input type="checkbox" checked=${state.teamSnapEnabled} onChange=${event => updateState({ teamSnapEnabled: event.target.checked })} /> TeamSnap</label>
         <button className="primary" disabled=${syncing} onClick=${requestExtensionSync}>${syncing ? "Syncing..." : "Sync now"}</button>
+        <div className="button-row">
+          <button onClick=${() => openSource("canvas")}>Canvas</button>
+          <button onClick=${() => openSource("teamsnap")}>TeamSnap</button>
+          <button onClick=${() => openSource("membean")}>Membean</button>
+        </div>
       </article>
       <article className="panel">
         <h2>Dashboard widgets</h2>
@@ -591,6 +729,45 @@ function SettingsPage({ state, updateState, setWidget, requestExtensionSync, syn
           `)}
         </div>
       </article>
+      <article className="panel">
+        <h2>Config codes</h2>
+        <form className="config-row" onSubmit=${event => {
+          event.preventDefault();
+          submitConfigCode(configCode);
+          setConfigCode("");
+        }}>
+          <input value=${configCode} onInput=${event => setConfigCode(event.target.value)} placeholder="Code" />
+          <button className="primary" type="submit">Submit</button>
+        </form>
+        <p className="muted">Try NORMAL, SIMPLE, V7, AARINI, or GENIUS.</p>
+      </article>
+    </section>
+  `;
+}
+
+function CosmeticsPage({ state, selectSkin }) {
+  const unlocked = normalizeUnlockedSkins(state.unlockedSkins);
+  return html`
+    <section className="panel full-page">
+      <div className="panel-title">
+        <h2>Cosmetics</h2>
+        <span className="muted">${unlocked.length}/${SKINS.length} unlocked</span>
+      </div>
+      <div className="skin-grid">
+        ${SKINS.map(skin => {
+          const locked = !unlocked.includes(skin.id);
+          return html`
+            <button
+              className=${`skin-card ${skin.className} ${state.selectedSkin === skin.id ? "selected" : ""} ${locked ? "locked" : ""}`}
+              disabled=${locked}
+              onClick=${() => selectSkin(skin.id)}
+            >
+              <strong>${skin.name}</strong>
+              <span>${locked ? "Locked" : skin.note}</span>
+            </button>
+          `;
+        })}
+      </div>
     </section>
   `;
 }
@@ -599,10 +776,22 @@ function applyExtensionPayload(prev, payload) {
   const courses = upsertCourses(prev.courses, payload.courses || payload.canvasCourses || []);
   const tasks = upsertTasks(prev.tasks, [...(payload.canvas || []), ...(prev.teamSnapEnabled ? payload.teamsnap || [] : [])], courses);
   const membeanRows = Array.isArray(payload.membean) ? payload.membean : [];
+  const membeanProgress = membeanRows.reduce((best, row) => {
+    const progress = row?.progress || row || {};
+    const completed = Number(progress.completedSessions || progress.completed || progress.sessionsCompleted || 0);
+    if (completed < Number(best.completedSessions || 0)) return best;
+    return normalizeMembeanProgress({
+      completedSessions: completed,
+      requiredSessions: progress.requiredSessions || progress.required || best.requiredSessions,
+      minutesPerSession: progress.minutesPerSession || progress.minutes || best.minutesPerSession,
+      updatedAt: payload.updatedAt || new Date().toISOString()
+    });
+  }, prev.membeanProgress || defaultState().membeanProgress);
   return {
     ...prev,
     courses,
     tasks,
+    membeanProgress,
     extensionSync: {
       ...prev.extensionSync,
       status: payload.sourceStatus || prev.extensionSync.status,
@@ -768,7 +957,7 @@ function formatTimer(seconds) {
 }
 
 function pageLabel(page) {
-  return ({ dashboard: "Dashboard", tasks: "Tasks", calendar: "Calendar", timer: "Timer", settings: "Settings" })[page] || "Dashboard";
+  return ({ dashboard: "Dashboard", tasks: "Tasks", calendar: "Calendar", timer: "Timer", cosmetics: "Cosmetics", settings: "Settings" })[page] || "Dashboard";
 }
 
 function widgetLabel(id) {
