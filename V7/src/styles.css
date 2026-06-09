@@ -106,6 +106,17 @@ button:disabled { opacity: 0.58; cursor: wait; }
 button.primary, .sync-button { background: var(--navy); color: #fff; border-color: var(--navy); }
 button.ghost { background: transparent; color: var(--muted); }
 
+.button-link {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 input, select {
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -601,6 +612,114 @@ input, select {
   background-size: 64px 64px;
 }
 
+.help-layout {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.help-hero {
+  background: linear-gradient(135deg, #fff, color-mix(in srgb, var(--gold) 16%, #fff));
+}
+
+.help-hero h2 {
+  font-size: clamp(1.7rem, 3vw, 2.5rem);
+  letter-spacing: -0.03em;
+  margin-bottom: 0.5rem;
+}
+
+.help-card {
+  grid-column: span 4;
+}
+
+.help-card p {
+  color: var(--muted);
+  min-height: 4.2rem;
+}
+
+.help-steps ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.7rem;
+  list-style: none;
+  padding: 0;
+  counter-reset: help-step;
+}
+
+.help-steps li {
+  counter-increment: help-step;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.85rem;
+  background: #fff;
+}
+
+.help-steps li::before {
+  content: counter(help-step);
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 0.55rem;
+  border-radius: 999px;
+  background: var(--navy);
+  color: #fff;
+  font-weight: 900;
+}
+
+.help-steps strong,
+.help-steps span {
+  display: block;
+}
+
+.help-steps span {
+  color: var(--muted);
+  margin-top: 0.25rem;
+}
+
+.tour-highlight {
+  position: relative;
+  z-index: 80;
+  outline: 4px solid color-mix(in srgb, var(--gold) 82%, #fff);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--gold) 18%, transparent), 0 18px 46px rgba(16, 47, 85, 0.22) !important;
+}
+
+.tour-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  background: transparent;
+}
+
+.tour-card {
+  position: fixed;
+  z-index: 91;
+  right: clamp(1rem, 3vw, 2.5rem);
+  bottom: clamp(1rem, 3vw, 2.5rem);
+  width: min(420px, calc(100vw - 2rem));
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 1.1rem;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--ink);
+  box-shadow: 0 22px 60px rgba(15, 23, 42, 0.25);
+  pointer-events: auto;
+}
+
+.tour-card h2 {
+  margin: 0 0 0.45rem;
+  color: var(--navy);
+}
+
+.tour-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
 @media (max-width: 940px) {
   .app-shell { grid-template-columns: 1fr; }
   .sidebar {
@@ -615,7 +734,8 @@ input, select {
   .sync-button { margin-top: 0; }
   .topbar { align-items: flex-start; flex-direction: column; }
   .panel, .panel.wide { grid-column: 1 / -1; }
-  .dashboard-grid, .settings-grid { grid-template-columns: 1fr; }
+  .dashboard-grid, .settings-grid, .help-layout { grid-template-columns: 1fr; }
+  .help-card { grid-column: 1 / -1; }
   .week-strip, .calendar-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 

@@ -8,7 +8,7 @@ const STORAGE_KEY = "epstudy_secure_pro_v7";
 const LEGACY_STORAGE_KEY = "epstudy_secure_pro_v6";
 const EPSTUDY_VERSION = "v7-react";
 const EPS_PERIODS = ["A", "B", "C", "D", "E", "F", "G", "H"];
-const PAGES = ["dashboard", "tasks", "calendar", "timer", "cosmetics", "settings"];
+const PAGES = ["dashboard", "tasks", "calendar", "timer", "cosmetics", "help", "settings"];
 const DEFAULT_WIDGETS = {
   today: true,
   timer: true,
@@ -26,6 +26,44 @@ const QUOTES = [
   ["Start before it feels urgent.", "EPStudy"],
   ["Make the next right task obvious, then do it.", "EPStudy"],
   ["Preparation is quieter than panic and usually faster.", "EPStudy"]
+];
+const TOUR_STEPS = [
+  {
+    page: "dashboard",
+    target: "nav-dashboard",
+    title: "Start on Dashboard",
+    body: "Dashboard is the quick daily view: open work, the timer, schedule awareness, calendar, and the short task queue."
+  },
+  {
+    page: "dashboard",
+    target: "today",
+    title: "Check Today First",
+    body: "Today shows the most useful next tasks. Mark something done here or open the full Tasks page when you need the longer list."
+  },
+  {
+    page: "dashboard",
+    target: "timer",
+    title: "Use the Focus Timer",
+    body: "Start a focused session from Dashboard or open the Timer page to pick a task and custom duration."
+  },
+  {
+    page: "dashboard",
+    target: "calendar",
+    title: "Scan the Week",
+    body: "Next 7 Days gives a fast workload preview. The full Calendar page shows the whole month with non-month days grayed out."
+  },
+  {
+    page: "settings",
+    target: "sync",
+    title: "Sync from Settings",
+    body: "Settings controls Canvas, TeamSnap, Membean, and source-opening buttons. The same extension install works with V6 and V7."
+  },
+  {
+    page: "cosmetics",
+    target: "cosmetics",
+    title: "Personalize Lightly",
+    body: "Cosmetics brings back some V6 personality without slowing V7 down. Secret codes unlock a few extra skins."
+  }
 ];
 const SKINS = [
   { id: "default", name: "Clean Sky", note: "Classic EPStudy calm.", className: "skin-default" },
@@ -231,6 +269,7 @@ function canvasCourseId(id) {
 function App() {
   const [state, setState] = useState(loadState);
   const [syncing, setSyncing] = useState(false);
+  const [tourStep, setTourStep] = useState(null);
   const [timerSeconds, setTimerSeconds] = useState(() => state.timerMinutes * 60);
   const [timerRunning, setTimerRunning] = useState(false);
   const saveTimer = useRef(null);
@@ -311,6 +350,7 @@ function App() {
   const todayTasks = useMemo(() => openTasks.filter(task => dateKey(task.dueDate) === dateKey(new Date())).slice(0, 6), [openTasks]);
   const weekTasks = useMemo(() => tasksInNextDays(openTasks, 7), [openTasks]);
   const quote = useMemo(() => QUOTES[new Date().getDate() % QUOTES.length], []);
+  const activeTour = tourStep === null ? null : TOUR_STEPS[tourStep] || null;
 
   function navigate(page) {
     const next = PAGES.includes(page) ? page : "dashboard";
@@ -408,6 +448,24 @@ function App() {
     setTimerSeconds(state.timerMinutes * 60);
   }
 
+  function startTour() {
+    setTourStep(0);
+    navigate(TOUR_STEPS[0].page);
+  }
+
+  function moveTour(delta) {
+    setTourStep(current => {
+      if (current === null) return current;
+      const next = Math.max(0, Math.min(TOUR_STEPS.length - 1, current + delta));
+      navigate(TOUR_STEPS[next].page);
+      return next;
+    });
+  }
+
+  function closeTour() {
+    setTourStep(null);
+  }
+
   return html`
     <div className="app-shell">
       <aside className="sidebar">
@@ -416,7 +474,7 @@ function App() {
           <span>EPStudy <strong>V7</strong></span>
         </div>
         ${PAGES.map(page => html`
-          <button className=${`nav-button ${state.currentPage === page ? "active" : ""}`} onClick=${() => navigate(page)}>
+          <button className=${`nav-button ${state.currentPage === page ? "active" : ""} ${activeTour?.target === `nav-${page}` ? "tour-highlight" : ""}`} onClick=${() => navigate(page)}>
             ${pageLabel(page)}
           </button>
         `)}
@@ -450,6 +508,7 @@ function App() {
             setTimerRunning=${setTimerRunning}
             resetTimer=${resetTimer}
             navigate=${navigate}
+            tourTarget=${activeTour?.target}
           />
         `}
         ${state.currentPage === "tasks" && html`<${TasksPage} tasks=${visibleTasks} coursesById=${coursesById} toggleTask=${toggleTask} ignoreTask=${ignoreTask} />`}
@@ -467,7 +526,10 @@ function App() {
           />
         `}
         ${state.currentPage === "cosmetics" && html`
-          <${CosmeticsPage} state=${state} selectSkin=${selectSkin} />
+          <${CosmeticsPage} state=${state} selectSkin=${selectSkin} tourTarget=${activeTour?.target} />
+        `}
+        ${state.currentPage === "help" && html`
+          <${HelpPage} navigate=${navigate} startTour=${startTour} requestExtensionSync=${requestExtensionSync} syncing=${syncing} />
         `}
         ${state.currentPage === "settings" && html`
           <${SettingsPage}
@@ -477,26 +539,37 @@ function App() {
             requestExtensionSync=${requestExtensionSync}
             openSource=${openSource}
             submitConfigCode=${submitConfigCode}
+            tourTarget=${activeTour?.target}
             syncing=${syncing}
           />
         `}
       </main>
+      ${activeTour && html`
+        <${TourOverlay}
+          step=${tourStep}
+          total=${TOUR_STEPS.length}
+          item=${activeTour}
+          next=${() => moveTour(1)}
+          previous=${() => moveTour(-1)}
+          close=${closeTour}
+        />
+      `}
     </div>
   `;
 }
 
-function Dashboard({ state, coursesById, todayTasks, weekTasks, quote, toggleTask, setWidget, timerSeconds, timerRunning, setTimerRunning, resetTimer, navigate }) {
+function Dashboard({ state, coursesById, todayTasks, weekTasks, quote, toggleTask, setWidget, timerSeconds, timerRunning, setTimerRunning, resetTimer, navigate, tourTarget }) {
   const widgets = state.dashboardWidgets || DEFAULT_WIDGETS;
   return html`
     <section className="dashboard-grid">
       ${widgets.today && html`
-        <article className="panel wide">
+        <article className=${`panel wide ${tourTarget === "today" ? "tour-highlight" : ""}`}>
           <div className="panel-title"><h2>Today</h2><button onClick=${() => navigate("tasks")}>Tasks</button></div>
           <${TaskStack} tasks=${todayTasks.length ? todayTasks : weekTasks.slice(0, 5)} coursesById=${coursesById} toggleTask=${toggleTask} compact=${true} />
         </article>
       `}
       ${widgets.timer && html`
-        <article className="panel">
+        <article className=${`panel ${tourTarget === "timer" ? "tour-highlight" : ""}`}>
           <h2>Focus Timer</h2>
           <div className="timer">${formatTimer(timerSeconds)}</div>
           <div className="button-row">
@@ -509,7 +582,7 @@ function Dashboard({ state, coursesById, todayTasks, weekTasks, quote, toggleTas
       ${(state.membeanEnabled || state.membeanProgress?.updatedAt) && html`<${MembeanWidget} progress=${state.membeanProgress} />`}
       ${widgets.periods && html`<${PeriodsWidget} courses=${state.courses} schedule=${todaysSchedule(state)} />`}
       ${widgets.calendar && html`
-        <article className="panel full">
+        <article className=${`panel full ${tourTarget === "calendar" ? "tour-highlight" : ""}`}>
           <div className="panel-title"><h2>Next 7 Days</h2><button onClick=${() => navigate("calendar")}>Calendar</button></div>
           <${WeekStrip} tasks=${weekTasks} />
         </article>
@@ -690,11 +763,11 @@ function TimerPage({ state, tasks, timerSeconds, timerRunning, setTimerSeconds, 
   `;
 }
 
-function SettingsPage({ state, updateState, setWidget, requestExtensionSync, openSource, submitConfigCode, syncing }) {
+function SettingsPage({ state, updateState, setWidget, requestExtensionSync, openSource, submitConfigCode, tourTarget, syncing }) {
   const [configCode, setConfigCode] = useState("");
   return html`
     <section className="settings-grid">
-      <article className="panel">
+      <article className=${`panel ${tourTarget === "sync" ? "tour-highlight" : ""}`}>
         <h2>Sync</h2>
         <label className="setting-row">Canvas domain<input value=${state.canvasDomain} onInput=${event => updateState({ canvasDomain: event.target.value })} /></label>
         <label className="check-row"><input type="checkbox" checked=${state.scheduleEnabled} onChange=${event => updateState({ scheduleEnabled: event.target.checked })} /> Show schedule</label>
@@ -745,10 +818,10 @@ function SettingsPage({ state, updateState, setWidget, requestExtensionSync, ope
   `;
 }
 
-function CosmeticsPage({ state, selectSkin }) {
+function CosmeticsPage({ state, selectSkin, tourTarget }) {
   const unlocked = normalizeUnlockedSkins(state.unlockedSkins);
   return html`
-    <section className="panel full-page">
+    <section className=${`panel full-page ${tourTarget === "cosmetics" ? "tour-highlight" : ""}`}>
       <div className="panel-title">
         <h2>Cosmetics</h2>
         <span className="muted">${unlocked.length}/${SKINS.length} unlocked</span>
@@ -769,6 +842,77 @@ function CosmeticsPage({ state, selectSkin }) {
         })}
       </div>
     </section>
+  `;
+}
+
+function HelpPage({ navigate, startTour, requestExtensionSync, syncing }) {
+  return html`
+    <section className="help-layout">
+      <article className="panel full-page help-hero">
+        <p className="eyebrow">Help Center</p>
+        <h2>Find the feature you need without digging.</h2>
+        <p className="muted">Short guides for setup, syncing, privacy, and the daily workflow. The visual walkthrough is intentionally short.</p>
+        <div className="button-row">
+          <button className="primary" onClick=${startTour}>Start visual walkthrough</button>
+          <a className="button-link" href="https://chromewebstore.google.com/detail/epstudy-sync/glajcaifhmapabedfnjhclalmnmklldb?hl=en-US&utm_source=ext_sidebar" target="_blank" rel="noopener noreferrer">Download extension</a>
+        </div>
+      </article>
+      <article className="panel help-card">
+        <h2>Start Here</h2>
+        <p>Sync once, check Dashboard, then use the timer for the first task that actually matters today.</p>
+        <button onClick=${startTour}>Open walkthrough</button>
+      </article>
+      <article className="panel help-card">
+        <h2>Sync Setup</h2>
+        <p>One extension install can feed V6 and V7. Keep EPStudy open and use signed-in Canvas, TeamSnap, and Membean tabs.</p>
+        <div className="button-row">
+          <button disabled=${syncing} onClick=${requestExtensionSync}>${syncing ? "Syncing..." : "Sync now"}</button>
+          <button onClick=${() => navigate("settings")}>Settings</button>
+        </div>
+      </article>
+      <article className="panel help-card">
+        <h2>Tasks</h2>
+        <p>Checking a task marks it complete locally and publishes that state to the shared extension cache.</p>
+        <button onClick=${() => navigate("tasks")}>Open Tasks</button>
+      </article>
+      <article className="panel help-card">
+        <h2>Calendar</h2>
+        <p>The calendar shows due dates by month. Tiles outside the current month are muted so today is easier to spot.</p>
+        <button onClick=${() => navigate("calendar")}>Open Calendar</button>
+      </article>
+      <article className="panel help-card">
+        <h2>Cosmetics</h2>
+        <p>V7 has a lighter version of V6 skins. Config codes can unlock small secret themes without slowing the app down.</p>
+        <button onClick=${() => navigate("cosmetics")}>Open Cosmetics</button>
+      </article>
+      <article className="panel full-page help-steps">
+        <h2>Recommended Setup</h2>
+        <ol>
+          <li><strong>Open Settings.</strong><span>Enable Schedule, Membean, or TeamSnap only if you use them.</span></li>
+          <li><strong>Run Sync.</strong><span>Let the extension read Canvas first, then optional sources.</span></li>
+          <li><strong>Check Dashboard.</strong><span>Use Today and Next 7 Days before opening the full list.</span></li>
+          <li><strong>Start a timer.</strong><span>Pick one task, focus, then mark it done when the work is genuinely complete.</span></li>
+        </ol>
+      </article>
+    </section>
+  `;
+}
+
+function TourOverlay({ step, total, item, next, previous, close }) {
+  const last = step >= total - 1;
+  return html`
+    <div className="tour-scrim" role="dialog" aria-modal="true" aria-label="EPStudy walkthrough">
+      <article className="tour-card">
+        <p className="eyebrow">Guide step ${step + 1} of ${total}</p>
+        <h2>${item.title}</h2>
+        <p>${item.body}</p>
+        <div className="tour-actions">
+          <button onClick=${previous} disabled=${step === 0}>Previous</button>
+          <button className="primary" onClick=${last ? close : next}>${last ? "Done" : "Next"}</button>
+          <button className="ghost" onClick=${close}>Skip</button>
+        </div>
+      </article>
+    </div>
   `;
 }
 
@@ -957,7 +1101,7 @@ function formatTimer(seconds) {
 }
 
 function pageLabel(page) {
-  return ({ dashboard: "Dashboard", tasks: "Tasks", calendar: "Calendar", timer: "Timer", cosmetics: "Cosmetics", settings: "Settings" })[page] || "Dashboard";
+  return ({ dashboard: "Dashboard", tasks: "Tasks", calendar: "Calendar", timer: "Timer", cosmetics: "Cosmetics", help: "Help", settings: "Settings" })[page] || "Dashboard";
 }
 
 function widgetLabel(id) {
